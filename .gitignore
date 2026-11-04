@@ -1,0 +1,6 @@
+Written_Challenge_Brief.pdf
+.DS_Store
+.venv/
+.env
+__pycache__/
+.worktrees/

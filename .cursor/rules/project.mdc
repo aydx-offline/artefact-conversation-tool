@@ -1,0 +1,24 @@
+---
+description: How an agent must behave in this repo
+alwaysApply: true
+---
+
+# Project rules
+
+Read AGENT.md before changing this repo.
+
+- Fictional people and brands only.
+- Do not commit Written_Challenge_Brief.pdf.
+- Do not publish the brief.
+- Do not invent a screenshot.
+- Do not overwrite an earlier run.
+- If a requirement is unclear, stop and ask Ann. Do not guess.
+- The future tool returns three Chinese WeChat candidates.
+- A log row is not closed while its screenshot cell starts with `PENDING`.
+- After a substantial step, append a row to `log/LOG.md`.
+- Capture that row's screenshot with `python3 log/capture_step.py` before closing it.
+- Write a failing test before the change it covers.
+- Edit an existing file before creating a new one.
+- Keep code and docs concise.
+- The default languages are Python and Markdown.
+- Before finishing a document, read `.cursor/skills/deslop/SKILL.md` and apply it.
