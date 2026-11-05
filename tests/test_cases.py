@@ -28,10 +28,13 @@ class CaseFilesTest(unittest.TestCase):
             for split in FILES
         }
         cls.clients = json.loads((ROOT / "data/clients.json").read_text(encoding="utf-8"))
-        cls.catalog = {
-            item["id"]
-            for item in json.loads((ROOT / "data/brand/catalog.json").read_text(encoding="utf-8"))
-        }
+        catalog = json.loads((ROOT / "data/brand/catalog.json").read_text(encoding="utf-8"))
+        cls.catalog = {item["id"] for item in catalog}
+        cls.product_terms = {
+            term
+            for item in catalog
+            for term in (item["name"], item["line"])
+        } | {"大衣", "围巾", "耳钉", "长裙"}
         cls.events = set(json.loads((ROOT / "data/brand/events.json").read_text(encoding="utf-8")))
         cls.festivals = json.loads((ROOT / "data/brand/festivals.json").read_text(encoding="utf-8"))
         cls.rules = json.loads((ROOT / "data/brand/rules.json").read_text(encoding="utf-8"))
@@ -147,20 +150,59 @@ class CaseFilesTest(unittest.TestCase):
             for purchase in self.clients[client_id]["purchases"]:
                 self.assertLessEqual(date.fromisoformat(purchase["date"]), case_day, client_id)
 
+    def test_histories_alternate_senders(self):
+        exceptions = {}
+        for rows in self.rows.values():
+            for row in rows:
+                repeated = sum(
+                    left["sender"] == right["sender"]
+                    for left, right in zip(row["history"], row["history"][1:])
+                )
+                if repeated:
+                    exceptions[row["case_id"]] = repeated
+        self.assertTrue(all(count == 1 for count in exceptions.values()), exceptions)
+        self.assertLessEqual(len(exceptions), 5, exceptions)
+
+    def test_client_reuse_is_bounded_and_spaced(self):
+        uses = {}
+        for rows in self.rows.values():
+            for row in rows:
+                uses.setdefault(row["client_id"], []).append(
+                    (row["case_id"], date.fromisoformat(row["timestamp"][:10]))
+                )
+        for client_id, cases in uses.items():
+            self.assertLessEqual(len(cases), 3, (client_id, cases))
+            days = sorted(day for _, day in cases)
+            for previous, current in zip(days, days[1:]):
+                self.assertGreaterEqual((current - previous).days, 14, (client_id, cases))
+
     def test_history_repetition_is_bounded(self):
-        greeting_whitelist = {
-            "谢谢惦记，我最近事情多，一直没顾上。",
+        rows = [row for split in self.rows.values() for row in split]
+        exact = {
+            row["case_id"]: {message["text"] for message in row["history"]}
+            for row in rows
         }
+        exact_counts = Counter(text for lines in exact.values() for text in lines)
+        self.assertFalse({text: count for text, count in exact_counts.items() if count > 3})
+
+        def normalise(row, text):
+            client = self.clients[row["client_id"]]
+            for term in sorted(
+                self.product_terms | {client["name"], client["address"]},
+                key=len,
+                reverse=True,
+            ):
+                text = text.replace(term, "")
+            return re.sub(r"[\W\d_]+", "", text, flags=re.UNICODE).lower()
+
         cases = {
             row["case_id"]: {
-                message["text"] for message in row["history"]
-                if message["text"] not in greeting_whitelist
+                normalise(row, message["text"]) for message in row["history"]
             }
-            for rows in self.rows.values()
             for row in rows
         }
         counts = Counter(text for lines in cases.values() for text in lines)
-        self.assertFalse({text: count for text, count in counts.items() if count > 3})
+        self.assertFalse({text: count for text, count in counts.items() if count > 2})
         ids = list(cases)
         for index, left in enumerate(ids):
             for right in ids[index + 1:]:

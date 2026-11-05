@@ -529,7 +529,25 @@
       }
     ],
     "last_visit": "2025-05-10",
-    "notes": "从上次看过的耳钉重新联系",
+    "notes": "曾试穿月白长裙，也咨询过珍珠耳钉",
+    "history": []
+  },
+  "zhou": {
+    "id": "zhou",
+    "name": "周女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "09-24",
+    "preferences": "喜欢云纹系列与清淡配色，重视换季收纳",
+    "purchases": [
+      {
+        "product_id": "yunwen",
+        "date": "2026-02-18"
+      }
+    ],
+    "last_visit": "2026-02-18",
+    "notes": "愿意听取具体的大衣养护建议",
     "history": []
   }
 }
