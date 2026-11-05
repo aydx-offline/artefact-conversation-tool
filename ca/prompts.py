@@ -108,6 +108,15 @@ def _case_body(resolved: dict, brand) -> str:
     return "\n".join(lines)
 
 
+def _preference_line(resolved: dict) -> str:
+    parts = []
+    if resolved.get("tone"):
+        parts.append(f"语气选{quote_data(resolved['tone'])}")
+    if resolved.get("length"):
+        parts.append(f"长度选{quote_data(resolved['length'])}")
+    return "顾问偏好：" + "；".join(parts) + "。" if parts else ""
+
+
 def _house(brand) -> str:
     return "你是奢侈品牌澄白（Chengbai）的客户顾问助手，用中文为微信写给客户的消息。\n" + brand.voice
 
@@ -132,7 +141,9 @@ def write_prompt(resolved: dict, plan: dict, brand=None) -> tuple[str, str]:
         '只输出如下格式：{"candidates":[{"strategy":"","reason":"","tone":"","length":"","text":""}]}'
     )
     picks = "\n".join(f"- 策略：{p['strategy']}；理由：{p['reason']}" for p in plan["picks"])
-    return system, f"{_case_body(resolved, brand)}\n策略：\n{picks}"
+    preference = _preference_line(resolved)
+    user = f"{_case_body(resolved, brand)}\n策略：\n{picks}"
+    return system, f"{user}\n{preference}" if preference else user
 
 
 def _candidate_lines(candidates: list, indexes=None) -> str:
@@ -158,6 +169,9 @@ def revise_prompt(resolved: dict, candidates: list, failures: dict, brand=None) 
         f"{_case_body(resolved, brand)}\n需要重写的消息：\n{_candidate_lines(candidates, failures)}"
         f"\n未通过的序号与问题：\n{problems}"
     )
+    preference = _preference_line(resolved)
+    if preference:
+        user += f"\n{preference}"
     return system, user
 
 

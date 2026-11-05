@@ -43,7 +43,7 @@
 - Before-and-after export writes `cases/before-after.csv`.
 - Export cells for client, history, and product are the resolved Chinese text, not ids.
 - `docs/coverage.md` is written and then work stops until Ann approves it. No `cases/inputs.jsonl` or `cases/tuning.jsonl` before that.
-- The resolved dict passed to prompts has these shapes. `client` is the client-store dict. `products` is a list of catalog dicts. `event` is an event dict or `None`. `history` is a list of `Message` or of dicts with `sender`, `text`, `time`. `occasion` is a Chinese string. `expectations` is a list of strings or a dict `{must, must_not}`. Prompts render only the Chinese fields, with price and dates as digits. Ids such as `lin` and `scarf` and English keys never appear in the prompt text. Revise prompts show only the failing candidates, with their original indexes.
+- The resolved dict passed to prompts has these shapes. `client` is the client-store dict. `products` is a list of catalog dicts. `event` is an event dict or `None`. `history` is a list of `Message` or of dicts with `sender`, `text`, `time`. `occasion`, `tone`, and `length` are Chinese strings; empty `tone` or `length` means the model chooses. `expectations` is a list of strings or a dict `{must, must_not}`. Prompts render only the Chinese fields, with price and dates as digits. Ids such as `lin` and `scarf` and English keys never appear in the prompt text. Revise prompts show only the failing candidates, with their original indexes.
 - Scenario 6 client text must contain a marker: price too high uses 贵 or 价格高; comparison uses 别处, 别家, 代购, 其他店, or 别的店; discount uses 折扣, 优惠, 打折, 便宜点, or 便宜一点.
 
 ```python

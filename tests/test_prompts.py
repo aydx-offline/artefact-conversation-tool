@@ -98,6 +98,23 @@ class PromptTest(unittest.TestCase):
         for word in ("简短", "1–50", "适中", "51–130", "150"):
             self.assertIn(word, system)
 
+    def test_write_and_revise_include_nonempty_case_preferences(self):
+        resolved = {**RESOLVED, "tone": "专业克制", "length": "简短"}
+        for pair in (
+            write_prompt(resolved, PLAN),
+            revise_prompt(resolved, CANDIDATES, {1: ["长度"]}),
+        ):
+            joined = "\n".join(pair)
+            self.assertIn("顾问偏好：语气选「专业克制」；长度选「简短」。", joined)
+
+    def test_empty_case_preferences_are_omitted(self):
+        resolved = {**RESOLVED, "tone": "", "length": ""}
+        for pair in (
+            write_prompt(resolved, PLAN),
+            revise_prompt(resolved, CANDIDATES, {1: ["长度"]}),
+        ):
+            self.assertNotIn("顾问偏好", "\n".join(pair))
+
     def test_plan_copies_menu_verbatim(self):
         system, user = plan_prompt(RESOLVED, MENU)
         self.assertIn("原文", system)

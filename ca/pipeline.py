@@ -111,6 +111,8 @@ def _resolve(case, brand, clients):
             "occasion": context.occasion,
             "days_since_purchase": context.days_since_purchase,
             "months_since_visit": context.months_since_visit,
+            "tone": case.tone,
+            "length": case.length,
             "expectations": case.expectations,
         }
     )

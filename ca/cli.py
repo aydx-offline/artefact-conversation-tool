@@ -72,12 +72,15 @@ def _run_dir(root, run_id):
     return matches[0]
 
 
-def _manifest(run_dir):
+def read_manifest(run_dir):
     data = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     end = run_dir / "manifest.end.json"
     if end.exists():
         data.update(json.loads(end.read_text(encoding="utf-8")))
     return data
+
+
+_manifest = read_manifest
 
 
 def _case_file(case, result):
@@ -105,7 +108,13 @@ def _manifest_start(root, cases, source, writer_model):
         }
         version = test_set_version(inputs, tuning, [clients[client_id] for client_id in sorted(used)])
     else:
-        digest = hashlib.sha256(source.read_bytes())
+        source_data = source.read_bytes() if source else json.dumps(
+            [asdict(case) for case in cases],
+            ensure_ascii=False,
+            sort_keys=True,
+            default=str,
+        ).encode("utf-8")
+        digest = hashlib.sha256(source_data)
         profiles = [clients[client_id] for client_id in sorted({case.client_id for case in cases})]
         digest.update(json.dumps(profiles, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         version = digest.hexdigest()
@@ -175,6 +184,36 @@ def _generate_one(case, model, brand, clients, store, run_id):
     return status
 
 
+def run_cases(cases, model, brand, clients, store, run_id, cancel_check=lambda: False, on_status=None):
+    statuses = {}
+
+    def work(case):
+        if cancel_check():
+            data = {
+                "case": asdict(case),
+                "resolved": {},
+                "steps": [],
+                "candidates": [],
+                "checks": [],
+                "status": "cancelled",
+            }
+            store.write_case(run_id, case.case_id, data)
+            store.append(run_id, "events.jsonl", {"case_id": case.case_id, "status": "cancelled"})
+            return "cancelled"
+        if on_status:
+            on_status(case.case_id, "running")
+        return _generate_one(case, model, brand, clients, store, run_id)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {pool.submit(work, case): case.case_id for case in cases}
+        for future in as_completed(futures):
+            case_id = futures[future]
+            statuses[case_id] = future.result()
+            if on_status:
+                on_status(case_id, statuses[case_id])
+    return statuses
+
+
 def _generate_command(args, root, env, model):
     case = load_case(Path(args.case))
     writer, _ = _models(env, model, None)
@@ -208,16 +247,15 @@ def _batch_command(args, root, env, model):
     store = RunStore(root / "runs")
     run_id = store.begin(_manifest_start(root, cases, source, getattr(writer, "model_name", type(writer).__name__)))
     telemetry = open_telemetry(env)
-    statuses = {}
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        futures = {
-            pool.submit(_generate_one, case, writer, brand, clients, store, run_id): case.case_id
-            for case in cases
-        }
-        for future in as_completed(futures):
-            case_id = futures[future]
-            statuses[case_id] = future.result()
-            print(case_id, statuses[case_id])
+    statuses = run_cases(
+        cases,
+        writer,
+        brand,
+        clients,
+        store,
+        run_id,
+        on_status=lambda case_id, status: print(case_id, status) if status != "running" else None,
+    )
     _finish(store, run_id, statuses)
     telemetry.flush()
     print(store.run_dir(run_id))
