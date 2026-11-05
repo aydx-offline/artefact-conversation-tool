@@ -40,7 +40,7 @@ class Case:
     client_id: str
     scenario: str
     timestamp: str
-    history: list = field(default_factory=list)
+    history: list | None = None
     product_ids: list = field(default_factory=list)
     event_id: str = ""
     occasion: str = ""
@@ -66,12 +66,12 @@ def validate_case(case, *, allowed_names):
         datetime.fromisoformat(case.timestamp)
     except ValueError:
         raise CaseError("timestamp", "must be ISO-8601")
-    for message in case.history:
+    for message in case.history or []:
         if message.sender not in ("client", "ca"):
             raise CaseError("history", f"unknown sender {message.sender!r}")
         if not prose_is_chinese(message.text, allowed_names):
             raise CaseError("history", f"text must be Chinese: {message.text!r}")
     if case.scenario.startswith("6"):
         markers = PRICE_MARKERS[case.scenario]
-        if not any(m.sender == "client" and any(k in m.text for k in markers) for m in case.history):
+        if not any(m.sender == "client" and any(k in m.text for k in markers) for m in case.history or []):
             raise CaseError("history", "scenario 6 needs a client message with a price marker")

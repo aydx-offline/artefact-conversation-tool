@@ -42,6 +42,9 @@ class SchemaTest(unittest.TestCase):
     def test_empty_history_is_valid_for_scenario_1(self):
         validate_case(case(), allowed_names=ALLOWED)
 
+    def test_none_history_is_valid_for_scenario_1(self):
+        validate_case(case(history=None), allowed_names=ALLOWED)
+
     def test_unknown_scenario_names_the_field(self):
         with self.assertRaises(CaseError) as caught:
             validate_case(case(scenario="nope"), allowed_names=ALLOWED)

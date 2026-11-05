@@ -105,6 +105,17 @@ class PipelineTests(unittest.TestCase):
         store["lin"]["name"] = "改名"
         self.assertEqual(result.resolved["client"]["name"], "林女士")
 
+    def test_history_omission_and_empty_list_resolve_differently(self):
+        store = clients()
+        stored = [{"sender": "client", "text": "最近好吗？", "time": "2026-10-01T10:00:00"}]
+        store["lin"]["history"] = stored
+
+        _, omitted = run([plan(*MENU[:3]), write(TEXTS)], store=store)
+        _, empty = run([plan(*MENU[:3]), write(TEXTS)], case=make_case(history=[]), store=store)
+
+        self.assertEqual(omitted.resolved["history"], stored)
+        self.assertEqual(empty.resolved["history"], [])
+
     def test_product_and_event_rules(self):
         for scenario, field in (("2 Product recommendation", "product_ids"), ("5 Event invitation", "event_id")):
             with self.assertRaises(CaseError) as caught:
