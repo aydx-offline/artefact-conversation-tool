@@ -65,6 +65,30 @@ class CheckTests(unittest.TestCase):
         self.assertFalse(run(["给您打八折", TEXTS[1], TEXTS[2]])["offer"].passed)
         self.assertTrue(run(["折扣我们没有，价格对每位客人都一样", TEXTS[1], TEXTS[2]])["offer"].passed)
 
+    def test_offer_clauses(self):
+        def offer(text):
+            return run([text, TEXTS[1], TEXTS[2]])["offer"].passed
+
+        self.assertFalse(offer("给您打八折，没有别的优惠"))
+        self.assertFalse(offer("给您打八折，没有"))
+        self.assertTrue(offer("我们没有优惠"))
+        self.assertTrue(offer("我们不能打折"))
+
+    def test_chinese_empty_remainder(self):
+        for text in ["", "Chengbai", "，。！"]:
+            self.assertFalse(run([text, TEXTS[1], TEXTS[2]])["chinese"].passed, text)
+
+    def test_indexes(self):
+        self.assertEqual(run()["count"].indexes, [])
+        blank = run(TEXTS[:2] + [" "])["count"]
+        self.assertEqual(blank.indexes, [2])
+        self.assertNotEqual(blank.reason, run(TEXTS[:2])["count"].reason)
+        self.assertEqual(run(["这是最后机会，快来。", TEXTS[1], "给您打八折"])["forbidden"].indexes, [0])
+        self.assertEqual(run([TEXTS[0], TEXTS[0], TEXTS[2]])["overlap"].indexes, [1])
+        self.assertEqual(run(c1={"strategy": MENU[0]})["distinct_strategies"].indexes, [1])
+        self.assertEqual(run(c1={"strategy": "不在菜单上"})["menu"].indexes, [1])
+        self.assertEqual(run(c0={"length": "简短", "text": "好" * 51})["length"].indexes, [0])
+
     def test_product(self):
         texts = ["素缎围巾很衬您。", TEXTS[1], TEXTS[2]]
         self.assertFalse(run(texts)["product"].passed)
