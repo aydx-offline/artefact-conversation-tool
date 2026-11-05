@@ -1,0 +1,14 @@
+{
+  "lin": {
+    "id": "lin",
+    "name": "林女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "03-15",
+    "preferences": "喜欢素色丝绸",
+    "purchases": [{"product_id": "scarf", "date": "2026-03-02"}],
+    "last_visit": "2026-03-02",
+    "history": []
+  }
+}
