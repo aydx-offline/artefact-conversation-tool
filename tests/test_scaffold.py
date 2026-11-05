@@ -16,7 +16,7 @@ class ScaffoldTest(unittest.TestCase):
 
     def test_gitignore_covers_local_secrets_and_caches(self):
         text = (ROOT / ".gitignore").read_text(encoding="utf-8")
-        for line in [".DS_Store", ".venv/", ".env", "__pycache__/"]:
+        for line in [".DS_Store", ".venv/", ".env", "__pycache__/", "runs/"]:
             self.assertIn(line, text)
 
     def test_agent_manual_has_required_sections_and_rules(self):

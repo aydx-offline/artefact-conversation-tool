@@ -4,3 +4,4 @@ Written_Challenge_Brief.pdf
 .env
 __pycache__/
 .worktrees/
+runs/
