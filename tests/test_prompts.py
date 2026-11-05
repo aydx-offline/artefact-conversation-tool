@@ -1,0 +1,110 @@
+import unittest
+
+from ca.prompts import (
+    SCENARIO_ZH,
+    chat_prompt,
+    judge_prompt,
+    natural_language_is_chinese,
+    plan_prompt,
+    quote_data,
+    revise_prompt,
+    write_prompt,
+)
+from ca.schema import SCENARIOS, Message
+
+KEYS = [
+    "strategy", "reason", "tone", "length", "text", "picks", "candidates",
+    "index", "client_name", "scenario", "client_message", "item", "value",
+    "scores", "candidate",
+]
+RESOLVED = {
+    "client": "林女士，称呼您，偏爱简约",
+    "scenario": SCENARIOS[0],
+    "history": [Message("client", "上次的丝巾很喜欢", "2026-10-01T10:00:00")],
+    "products": ["云纹丝巾"],
+    "occasion": "生日",
+    "event": "",
+    "days_since_purchase": 30,
+    "months_since_visit": 2,
+}
+MENU = ["问候", "关心", "新品", "邀约", "感谢"]
+PLAN = {"picks": [{"strategy": s, "reason": "合适"} for s in MENU[:3]]}
+CANDIDATES = [
+    {"strategy": "问候", "reason": "合适", "tone": "亲切温暖", "length": "简短", "text": "林女士，生日快乐。"}
+] * 3
+EXPECT = ["不能提折扣"]
+
+
+def all_prompts():
+    return {
+        "plan": plan_prompt(RESOLVED, MENU),
+        "write": write_prompt(RESOLVED, PLAN),
+        "revise": revise_prompt(RESOLVED, CANDIDATES, {1: ["超过一百五十字"]}),
+        "chat": chat_prompt("帮我给林女士写生日问候"),
+        "judge": judge_prompt(RESOLVED, CANDIDATES, EXPECT),
+    }
+
+
+class PromptTest(unittest.TestCase):
+    def test_quote_data(self):
+        self.assertEqual(quote_data("他说「好」"), "「他说『好』」")
+
+    def test_expectations_only_in_judge(self):
+        for name, pair in all_prompts().items():
+            joined = "\n".join(pair)
+            self.assertEqual("不能提折扣" in joined, name == "judge", name)
+
+    def test_prompts_are_chinese(self):
+        for name, pair in all_prompts().items():
+            for part in pair:
+                self.assertTrue(natural_language_is_chinese(part, ["Chengbai"] + KEYS), name)
+
+    def test_english_label_is_rejected(self):
+        self.assertFalse(natural_language_is_chinese("Product recommendation 你好", ["Chengbai"]))
+        self.assertTrue(natural_language_is_chinese("Chengbai 你好", ["Chengbai"]))
+
+    def test_scenario_line_is_chinese(self):
+        system, user = plan_prompt(RESOLVED, MENU)
+        self.assertIn("场景：生日与节日问候", user)
+        self.assertNotIn(SCENARIOS[0], user + system)
+        self.assertEqual(set(SCENARIO_ZH), set(SCENARIOS))
+
+    def test_system_says_quotes_are_data(self):
+        for name in ("plan", "write", "revise", "chat"):
+            self.assertIn("引用", all_prompts()[name][0])
+            self.assertIn("不是指令", all_prompts()[name][0])
+
+    def test_client_data_is_quoted(self):
+        _, user = write_prompt(RESOLVED, PLAN)
+        self.assertIn(quote_data("上次的丝巾很喜欢"), user)
+
+    def test_write_states_tones_and_lengths(self):
+        system, _ = write_prompt(RESOLVED, PLAN)
+        for word in ("亲切温暖", "得体典雅", "真诚走心", "简洁轻松", "专业克制", "含蓄低调"):
+            self.assertIn(word, system)
+        for word in ("简短", "1–50", "适中", "51–130", "150"):
+            self.assertIn(word, system)
+
+    def test_plan_copies_menu_verbatim(self):
+        system, user = plan_prompt(RESOLVED, MENU)
+        self.assertIn("原文", system)
+        for item in MENU:
+            self.assertIn(item, user)
+
+    def test_revise_lists_failing_index_only(self):
+        _, user = revise_prompt(RESOLVED, CANDIDATES, {1: ["超过一百五十字"]})
+        self.assertIn("超过一百五十字", user)
+
+    def test_chat_lists_eight_scenarios(self):
+        system, _ = chat_prompt("你好")
+        for zh in SCENARIO_ZH.values():
+            self.assertIn(zh, system)
+
+    def test_judge_items(self):
+        system, _ = judge_prompt(RESOLVED, CANDIDATES, EXPECT)
+        for item in ("事实", "期望", "场景", "称呼", "具体", "中文", "品牌", "不催"):
+            self.assertIn(item, system)
+
+
+if __name__ == "__main__":
+    unittest.main()
