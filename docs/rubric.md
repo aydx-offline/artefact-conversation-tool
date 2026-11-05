@@ -4,7 +4,7 @@ Draft. Do not generate messages until Ann accepts or edits this file.
 
 ## Good
 
-A case is good when all three candidates are acceptable. Each candidate is Chinese and within length. A candidate uses only facts, dates, and details from the input, fits the named scenario, matches the relationship and address form, is specific to this client, reads as natural WeChat Chinese, is on-brand, and is not pushy. The three candidates are three different strategies. English names that the brand allows are not a failure.
+A case is good when all three candidates are acceptable. Each candidate is Chinese and within length. A candidate uses only facts, dates, and details from the input, fits the named scenario, matches the relationship and address form, is specific to this client, and reads as natural WeChat Chinese. On-brand and not pushy are 1–5 items; a 1–5 item passes at 3 or above (see Scoring). The three candidates are three different strategies. English names that the brand allows are not a failure.
 
 ## Not acceptable
 
@@ -18,13 +18,10 @@ A case is good when all three candidates are acceptable. Each candidate is Chine
 - A template opener that would fit any client
 - The wrong relationship or address form
 - Translationese
-- A greeting or care message that turns into a hard sell
-
-## Unscored until the brand exists
-
-Brand fit is a 1–5 judge item.
 
 ## Scoring
+
+Brand fit is a 1–5 judge item.
 
 | Rubric item | Scored by |
 | --- | --- |

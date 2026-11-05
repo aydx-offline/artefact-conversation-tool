@@ -102,14 +102,19 @@ class ScaffoldTest(unittest.TestCase):
             "Case ID,Scenario,Client information,Conversation history,Product information,Output 1,Output 2,Output 3,Generator version",
         )
         rubric = (ROOT / "docs" / "rubric.md").read_text(encoding="utf-8")
-        for heading in ["# Draft rubric", "## Good", "## Not acceptable", "## Unscored until the brand exists"]:
+        for heading in ["# Draft rubric", "## Good", "## Not acceptable"]:
             self.assertIn(heading, rubric)
+        self.assertNotIn("## Unscored until the brand exists", rubric)
+        self.assertNotIn("hard sell", rubric)
         self.assertIn("Draft. Do not generate messages until Ann accepts or edits this file.", rubric)
         for line in [
             "## Scoring",
             "A candidate is acceptable",
             "no 1–5 item is below 3",
             "Facts, dates, and details come from the input",
+            "English names that the brand allows are not a failure",
+            "Brand fit is a 1–5 judge item.",
+            "a 1–5 item passes at 3 or above",
         ]:
             self.assertIn(line, rubric)
 
