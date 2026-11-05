@@ -41,3 +41,10 @@ Commit `407968a` (`fix: harden local web app`) removes dynamic `innerHTML`, norm
 
 - Focused tests: 27 passed.
 - Full suite: 163 ran; only `test_step_screenshots_are_real_pngs_and_the_log_links_them` failed as expected, with one configured skip.
+
+## Fix round 2
+
+Commit `fe96b94` (`fix: harden web request handling`) applies the local Host rule to every method, restores safe 503 model-configuration errors, validates request lengths, closes oversized requests, and displays batch errors safely.
+
+- Web tests: 25 passed.
+- Full suite: 167 ran; only `test_step_screenshots_are_real_pngs_and_the_log_links_them` failed as expected, with one configured skip.
