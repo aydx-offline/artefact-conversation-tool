@@ -1,4 +1,6 @@
 import unittest
+from dataclasses import replace
+from pathlib import Path
 
 from ca.prompts import (
     SCENARIO_ZH,
@@ -10,7 +12,14 @@ from ca.prompts import (
     revise_prompt,
     write_prompt,
 )
+from ca.brand import load_brand
+from ca.clients import load_clients
 from ca.schema import SCENARIOS, Message
+
+ROOT = Path(__file__).resolve().parent.parent
+BRAND = load_brand(ROOT / "data" / "brand")
+LIN = load_clients(ROOT / "data" / "clients.json")["lin"]
+SCARF = next(p for p in BRAND.catalog if p["id"] == "scarf")
 
 KEYS = [
     "strategy", "reason", "tone", "length", "text", "picks", "candidates",
@@ -18,20 +27,24 @@ KEYS = [
     "scores", "candidate",
 ]
 RESOLVED = {
-    "client": "林女士，称呼您，偏爱简约",
+    "client": LIN,
     "scenario": SCENARIOS[0],
-    "history": [Message("client", "上次的丝巾很喜欢", "2026-10-01T10:00:00")],
-    "products": ["云纹丝巾"],
+    "history": [
+        Message("client", "上次的丝巾很喜欢", "2026-10-01T10:00:00"),
+        {"sender": "ca", "text": "谢谢您的喜欢", "time": "2026-10-01T10:05:00"},
+    ],
+    "products": [SCARF],
     "occasion": "生日",
-    "event": "",
+    "event": BRAND.events["winter"],
     "days_since_purchase": 30,
     "months_since_visit": 2,
 }
 MENU = ["问候", "关心", "新品", "邀约", "感谢"]
 PLAN = {"picks": [{"strategy": s, "reason": "合适"} for s in MENU[:3]]}
 CANDIDATES = [
-    {"strategy": "问候", "reason": "合适", "tone": "亲切温暖", "length": "简短", "text": "林女士，生日快乐。"}
-] * 3
+    {"strategy": "问候", "reason": "合适", "tone": "亲切温暖", "length": "简短", "text": f"第{i}条消息"}
+    for i in range(3)
+]
 EXPECT = ["不能提折扣"]
 
 
@@ -94,6 +107,44 @@ class PromptTest(unittest.TestCase):
     def test_revise_lists_failing_index_only(self):
         _, user = revise_prompt(RESOLVED, CANDIDATES, {1: ["超过一百五十字"]})
         self.assertIn("超过一百五十字", user)
+        self.assertIn("第1条消息", user)
+        self.assertNotIn("第0条消息", user)
+        self.assertNotIn("第2条消息", user)
+        self.assertIn("1. 策略", user)
+        system, _ = revise_prompt(RESOLVED, CANDIDATES, {2: ["x"]})
+        self.assertIn('"index":2', system)
+
+    def test_real_shapes_render_chinese_fields_only(self):
+        _, user = write_prompt(RESOLVED, PLAN)
+        for word in ("林女士", "常客", "您", "03-15", "喜欢素色丝绸", "素缎围巾", "素缎系列",
+                     "12800", "桑蚕丝素缎", "冬日私览", "2026-11-20", "上海澄白店", "10",
+                     "谢谢您的喜欢"):
+            self.assertIn(word, user)
+        for word in ("lin", "scarf", "product_id", "id", "yunwen"):
+            self.assertNotIn(word, user)
+
+    def test_event_without_capacity_omits_it(self):
+        resolved = {**RESOLVED, "event": BRAND.events["spring"]}
+        _, user = write_prompt(resolved, PLAN)
+        self.assertIn("春日沙龙", user)
+        self.assertNotIn("名额", user)
+
+    def test_judge_expectations_dict(self):
+        _, user = judge_prompt(RESOLVED, CANDIDATES, {"must": ["提到围巾"], "must_not": ["不能提折扣"]})
+        self.assertIn("必须：", user)
+        self.assertIn("不得：", user)
+        self.assertIn("提到围巾", user)
+        self.assertIn("不能提折扣", user)
+
+    def test_passed_brand_voice_is_used(self):
+        brand = replace(BRAND, voice="独特声音测试")
+        for pair in (
+            plan_prompt(RESOLVED, MENU, brand=brand),
+            write_prompt(RESOLVED, PLAN, brand=brand),
+            revise_prompt(RESOLVED, CANDIDATES, {0: ["x"]}, brand=brand),
+            judge_prompt(RESOLVED, CANDIDATES, EXPECT, brand=brand),
+        ):
+            self.assertIn("独特声音测试", "\n".join(pair))
 
     def test_chat_lists_eight_scenarios(self):
         system, _ = chat_prompt("你好")
