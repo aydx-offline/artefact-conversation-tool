@@ -7,7 +7,7 @@ from ca.brand import load_brand
 from ca.clients import load_clients
 from ca.llm import FakeModel
 from ca.pipeline import generate
-from ca.schema import Case, CaseError
+from ca.schema import Case, CaseError, load_case
 
 ROOT = Path(__file__).resolve().parent.parent
 BRAND = load_brand(ROOT / "data" / "brand")
@@ -42,6 +42,10 @@ def revise(items):
     return json.dumps({"candidates": [candidate(i, t, index=i) for i, t in items]}, ensure_ascii=False)
 
 
+def fenced(raw):
+    return f"结果如下：\n```json\n{raw}\n```\n"
+
+
 def run(replies, case=None, store=None):
     model = FakeModel(replies)
     result = generate(case or make_case(), model, BRAND, store or clients(), None, sleep=lambda s: None)
@@ -57,7 +61,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(model.calls, [])
 
     def test_plan_retry_then_happy_path_step_order(self):
-        model, result = run([plan(MENU[0], MENU[0], MENU[1]), plan(*MENU[:3]), write(TEXTS)])
+        model, result = run([plan(MENU[0], MENU[0], MENU[1]), fenced(plan(*MENU[:3])), fenced(write(TEXTS))])
         self.assertEqual(result.status, "done")
         self.assertEqual(len(model.calls), 3)
         self.assertEqual([s.name for s in result.steps], ["validate", "resolve", "select", "plan", "write", "check", "final"])
@@ -65,7 +69,7 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(all(c.passed for c in result.checks))
 
     def test_revise_replaces_only_failing_indexes(self):
-        model, result = run([plan(*MENU[:3]), write([TEXTS[0]] * 3), revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])])])
+        model, result = run([plan(*MENU[:3]), write([TEXTS[0]] * 3), fenced(revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])]))])
         self.assertEqual(result.status, "done")
         user = model.calls[2][1]
         self.assertIn("1. 策略", user)
@@ -91,6 +95,37 @@ class PipelineTests(unittest.TestCase):
         _, result = run([RuntimeError("断线")] * 3)
         self.assertEqual(result.status, "failed")
         self.assertEqual(result.candidates, [])
+        self.assertEqual(result.steps[-1].name, "error")
+        self.assertIn("断线", result.steps[-1].raw)
+        self.assertIn('"picks"', result.steps[-1].prompt)
+
+    def test_revise_accepts_string_indexes(self):
+        raw = json.dumps(
+            {"candidates": [candidate(i, text, index=str(i)) for i, text in enumerate(NEW_TEXTS, 1)]},
+            ensure_ascii=False,
+        )
+        _, result = run([plan(*MENU[:3]), write([TEXTS[0]] * 3), raw])
+        self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0], *NEW_TEXTS])
+
+    def test_only_explicit_non_greeting_occasions_reach_prompts(self):
+        rows = {
+            row["case_id"]: row
+            for line in (ROOT / "cases" / "inputs.jsonl").read_text(encoding="utf-8").splitlines()
+            if (row := json.loads(line))["case_id"] in {"f13", "f14"}
+        }
+        for case_id, expected, absent in (("f13", "", "端午"), ("f14", "七夕", "")):
+            case = load_case(rows[case_id])
+            menu = BRAND.menus[case.scenario]
+            model = FakeModel([plan(*menu[:3]), RuntimeError("stop"), RuntimeError("stop"), RuntimeError("stop")])
+
+            result = generate(case, model, BRAND, clients(), None, sleep=lambda s: None)
+            prompts = "\n".join(text for call in model.calls for text in call)
+
+            self.assertEqual(result.resolved["occasion"], expected)
+            if expected:
+                self.assertIn(expected, prompts)
+            if absent:
+                self.assertNotIn(absent, prompts)
 
     def test_expectations_never_reach_the_model(self):
         case = make_case(expectations=["必须提到围巾保养"])

@@ -1,4 +1,7 @@
+import io
 import unittest
+import urllib.error
+from unittest.mock import MagicMock, patch
 
 from ca.llm import (
     FakeModel,
@@ -47,14 +50,14 @@ class RetryTests(unittest.TestCase):
         sleeps = []
         model = FlakyModel([OSError("1"), OSError("2"), "ok"])
         self.assertEqual(complete_with_retries(model, "s", "u", sleeps.append), "ok")
-        self.assertEqual(sleeps, [0.5, 1.0])
+        self.assertEqual(sleeps, [2, 8])
 
     def test_three_failures_raise_last_error(self):
         sleeps = []
         model = FlakyModel([OSError("1"), OSError("2"), OSError("3")])
         with self.assertRaisesRegex(OSError, "3"):
             complete_with_retries(model, "s", "u", sleeps.append)
-        self.assertEqual(sleeps, [0.5, 1.0])
+        self.assertEqual(sleeps, [2, 8])
 
     def test_first_success_does_not_sleep(self):
         sleeps = []
@@ -106,6 +109,29 @@ class GlmTests(unittest.TestCase):
         model = GlmModel(KEY, "https://example.invalid/v1", "m")
         self.assertNotIn(KEY, repr(model))
         self.assertNotIn(KEY, str(model))
+
+    def test_timeout_is_configurable(self):
+        model = GlmModel(KEY, "https://example.invalid/v1", "m", timeout=23)
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"choices":[{"message":{"content":"ok"}}]}'
+        )
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            self.assertEqual(model.complete("s", "u"), "ok")
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], 23)
+
+    def test_http_error_includes_body_without_key(self):
+        error = urllib.error.HTTPError(
+            "https://example.invalid/v1",
+            429,
+            "limited",
+            {},
+            io.BytesIO("请求过多".encode()),
+        )
+        with patch("urllib.request.urlopen", side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, "GLM 429: 请求过多") as caught:
+                GlmModel(KEY, "https://example.invalid/v1", "m").complete("s", "u")
+        self.assertNotIn(KEY, str(caught.exception))
 
 
 if __name__ == "__main__":

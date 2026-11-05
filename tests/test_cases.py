@@ -114,6 +114,9 @@ class CaseFilesTest(unittest.TestCase):
                 else:
                     expected = "生日" if note.startswith("birthday") else note.split("；")[0]
                 self.assertEqual(context.occasion, expected, row["case_id"])
+        final = {row["case_id"]: row for row in self.rows["final"]}
+        self.assertEqual(final["f14"]["occasion"], "七夕")
+        self.assertEqual(final["f21"]["occasion"], "中秋")
 
     def test_non_greeting_cases_do_not_resolve_birthdays(self):
         for rows in self.rows.values():

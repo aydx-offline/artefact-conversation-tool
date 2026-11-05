@@ -8,8 +8,10 @@ class DockerTest(unittest.TestCase):
     def test_image_contains_runtime_files_and_web_command(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("python:3.12-slim", dockerfile)
-        for path in ("ca", "web", "data", "cases", "requirements.txt"):
+        self.assertIn("COPY ca ca", dockerfile)
+        for path in ("web", "data", "cases", "requirements.txt"):
             self.assertIn(path, dockerfile)
+        self.assertIn("ENV CA_WEB_HOST=0.0.0.0", dockerfile)
         self.assertIn('CMD ["python", "-m", "ca.web"]', dockerfile)
 
     def test_readme_contains_exact_build_and_run_commands(self):

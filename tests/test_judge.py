@@ -104,6 +104,17 @@ class JudgeTests(unittest.TestCase):
         self.assertEqual(rows[0]["value"], "pass")
         self.assertEqual(rows[1]["value"], "fail")
 
+    def test_evaluate_case_accepts_integer_fact_values_in_fenced_json(self):
+        scores = judge_scores()
+        scores[0]["value"] = 1
+        scores[1]["value"] = 0
+        raw = "说明\n```json\n" + json.dumps({"scores": scores}, ensure_ascii=False) + "\n```\n完毕"
+
+        rows = evaluate_case(case_file(), FakeModel([raw]), BRAND)
+
+        self.assertEqual(rows[0]["value"], "pass")
+        self.assertEqual(rows[1]["value"], "fail")
+
     def test_evaluate_case_rejects_invalid_score_grids_with_raw_reply(self):
         invalid_scores = {
             "bool candidate": [{**row, "candidate": True} if index == 0 else row
@@ -112,7 +123,7 @@ class JudgeTests(unittest.TestCase):
                                        for index, row in enumerate(judge_scores())],
             "unknown item": [{**row, "item": "未知"} if index == 0 else row
                              for index, row in enumerate(judge_scores())],
-            "bad fact": [{**row, "value": 1} if index == 0 else row
+            "bad fact": [{**row, "value": 2} if index == 0 else row
                          for index, row in enumerate(judge_scores())],
             "bool score": [{**row, "value": True} if index == 2 else row
                            for index, row in enumerate(judge_scores())],

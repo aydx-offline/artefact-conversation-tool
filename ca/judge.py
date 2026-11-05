@@ -1,9 +1,8 @@
-import json
 import time
 import uuid
 from datetime import datetime, timezone
 
-from ca.llm import complete_with_retries
+from ca.llm import complete_with_retries, parse_json
 from ca.prompts import JUDGE_FACT_ITEMS, JUDGE_SCORE_ITEMS, judge_prompt
 from ca.version import JUDGE_VERSION
 
@@ -25,10 +24,10 @@ def evaluation_id():
 
 def _validated_scores(raw):
     try:
-        scores = json.loads(raw)["scores"]
+        scores = parse_json(raw)["scores"]
         if not isinstance(scores, list) or not all(isinstance(row, dict) for row in scores):
             raise TypeError
-    except (json.JSONDecodeError, KeyError, TypeError) as error:
+    except (KeyError, TypeError) as error:
         raise JudgeError("invalid judge JSON: expected a scores list", raw) from error
 
     items = set(JUDGE_FACT_ITEMS + JUDGE_SCORE_ITEMS)
@@ -48,6 +47,8 @@ def _validated_scores(raw):
         seen.add(key)
         if item in JUDGE_FACT_ITEMS:
             if isinstance(value, bool):
+                row["value"] = "pass" if value else "fail"
+            elif isinstance(value, int) and value in (0, 1):
                 row["value"] = "pass" if value else "fail"
             elif value not in ("pass", "fail"):
                 raise JudgeError("invalid judge row: fact value must be pass or fail", raw)

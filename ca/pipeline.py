@@ -1,12 +1,11 @@
 import copy
-import json
 import time
 from dataclasses import asdict, dataclass, field, is_dataclass
 
 from ca.checks import check_candidates
 from ca.clients import ALLOWED_NAMES
 from ca.context import resolve_context
-from ca.llm import complete_with_retries
+from ca.llm import complete_with_retries, parse_json
 from ca.prompts import plan_prompt, revise_prompt, write_prompt
 from ca.schema import CaseError, validate_case
 
@@ -45,15 +44,8 @@ class Result:
     checks: list = field(default_factory=list)
 
 
-def _json_object(raw):
-    try:
-        return json.loads(raw[raw.index("{") : raw.rindex("}") + 1])
-    except ValueError:
-        return None
-
-
 def _candidate_list(raw):
-    data = _json_object(raw)
+    data = parse_json(raw)
     items = data.get("candidates") if isinstance(data, dict) else None
     if not isinstance(items, list):
         return []
@@ -61,7 +53,7 @@ def _candidate_list(raw):
 
 
 def _picks(raw, menu):
-    data = _json_object(raw)
+    data = parse_json(raw)
     picks = data.get("picks") if isinstance(data, dict) else None
     if not isinstance(picks, list) or len(picks) != 3 or not all(isinstance(p, dict) for p in picks):
         return None
@@ -108,7 +100,7 @@ def _resolve(case, brand, clients):
             "products": products,
             "event": event,
             "history": [asdict(m) if is_dataclass(m) else m for m in history],
-            "occasion": context.occasion,
+            "occasion": context.occasion if case.scenario == "1 Birthday and festive greetings" else case.occasion,
             "days_since_purchase": context.days_since_purchase,
             "months_since_visit": context.months_since_visit,
             "tone": case.tone,
@@ -187,11 +179,16 @@ def generate(case, model, brand, clients, recorder, sleep=time.sleep):
             raw = call(prompt)
             record(Step("revise", "\n".join(prompt), raw))
             for item in _candidate_list(raw):
-                if item.get("index") in failures:
-                    candidates[item["index"]] = {k: item[k] for k in CANDIDATE_KEYS}
+                try:
+                    index = int(item.get("index"))
+                except (TypeError, ValueError):
+                    continue
+                if index in failures:
+                    candidates[index] = {k: item[k] for k in CANDIDATE_KEYS}
             checks = check()
-    except ModelError:
+    except ModelError as error:
         result.candidates, result.checks = [], []
+        record(Step("error", "\n".join(prompt), str(error)))
         return finish("failed")
 
     result.candidates, result.checks = candidates, checks

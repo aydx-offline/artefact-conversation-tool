@@ -245,6 +245,17 @@ class CliTest(unittest.TestCase):
             test_set_version(inputs, cases, [load_clients(self.root / "data" / "clients.json")["lin"]]),
         )
 
+    def test_timeout_and_worker_settings_parse_with_defaults(self):
+        from ca.cli import _models, _workers
+
+        env = {"GLM_API_KEY": "key", "WRITER_MODEL": "writer", "JUDGE_MODEL": "judge"}
+        writer, judge = _models(env, None, None)
+        self.assertEqual((writer.timeout, judge.timeout, _workers(env)), (180, 180, 2))
+
+        configured = {**env, "GLM_TIMEOUT": "45", "CA_WORKERS": "3"}
+        writer, judge = _models(configured, None, None)
+        self.assertEqual((writer.timeout, judge.timeout, _workers(configured)), (45, 45, 3))
+
     def test_batch_rejects_duplicate_ids_before_begin(self):
         from ca.cli import main
 

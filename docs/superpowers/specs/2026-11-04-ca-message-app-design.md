@@ -80,7 +80,7 @@ Rejected for now: three separate model calls per case, which cost three times as
 
 ### Time and occasion
 
-Code works these out from the timestamp before any model call:
+For scenario 1, code works these out from the timestamp before any model call. Other scenarios receive an occasion only when the case sets one explicitly:
 
 - **Festival:** a festival counts when the timestamp is on its date or up to 3 days before. Dates come from a festival calendar in the brand data, which lists solar and lunar festivals by year, so no lunar-date library is needed.
 - **Birthday:** from the client's birthday, with the same window.
@@ -94,7 +94,7 @@ If a scenario 1 case has no festival or birthday in the window and no `occasion`
 At run time a case is resolved into the brief's four inputs, and the resolved input is saved in the run's case file:
 
 - **Client information:** the client's profile from the store.
-- **Scenario:** the label, plus the occasion, the event details, and the time since contact.
+- **Scenario:** the label, the scenario-1 calendar occasion or another scenario's explicit case occasion, the event details, and the time since contact.
 - **Conversation history:** the case's history, or the client's stored history.
 - **Product information:** catalog details for the products.
 
@@ -125,7 +125,7 @@ Tone labels: 亲切温暖, 得体典雅, 真诚走心, 简洁轻松, 专业克�
 
 One Python package with no agent framework: plain Python, the GLM API, and the Langfuse Python SDK. Every front end calls the same pipeline and reads the same run store.
 
-Model calls are normal synchronous calls. A batch runs up to 4 cases at a time. The writer and the judge are different GLM models. The GLM Batch API is in `docs/future-implementation.md`.
+Model calls are normal synchronous calls. A batch runs two cases at a time by default, configurable with `CA_WORKERS`. The writer and the judge are different GLM models. The GLM Batch API is in `docs/future-implementation.md`.
 
 ```
 CLI or page batch (cases/inputs.jsonl) ──┐
@@ -166,7 +166,7 @@ Each unit has one job and can be tested alone.
 Each step becomes a trace entry with name, start and end time, status, input summary, and output. Prompts and raw model output are kept for every model step.
 
 1. **Validate** the case against the schema and the scenario list. A scenario 6 case with no client message is rejected here.
-2. **Resolve** the case into the four inputs, including the occasion and time since contact.
+2. **Resolve** the case into the four inputs, using calendar occasion only for scenario 1 and explicit case occasion elsewhere, plus time since contact.
 3. **Select rules:** the brand rules and the strategy menu for this scenario and client.
 4. **Plan** (model call): three different strategies from the menu, with a one-line reason for each. Code checks that all three are on the menu and different. If not, the plan is retried once.
 5. **Write** (model call): JSON with three `{strategy, reason, tone, length, text}` candidates.

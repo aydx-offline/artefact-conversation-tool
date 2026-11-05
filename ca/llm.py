@@ -1,4 +1,5 @@
 import json
+import urllib.error
 import urllib.request
 
 
@@ -31,11 +32,19 @@ def parse_reply(raw):
     return json.loads(raw)["choices"][0]["message"]["content"]
 
 
+def parse_json(raw):
+    try:
+        return json.loads(raw[raw.index("{") : raw.rindex("}") + 1])
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 class GlmModel:
-    def __init__(self, api_key, base_url, model_name):
+    def __init__(self, api_key, base_url, model_name, timeout=180):
         self._api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
+        self.timeout = timeout
 
     def __repr__(self):
         return f"GlmModel(base_url={self.base_url!r}, model_name={self.model_name!r})"
@@ -49,12 +58,19 @@ class GlmModel:
                 "Authorization": f"Bearer {self._api_key}",
             },
         )
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return parse_reply(response.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                return parse_reply(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            try:
+                body = error.read().decode("utf-8", errors="replace")[:500]
+            finally:
+                error.close()
+            raise RuntimeError(f"GLM {error.code}: {body}") from error
 
 
 def complete_with_retries(model, system, user, sleep):
-    delays = [0.5, 1.0]
+    delays = [2, 8]
     for attempt in range(3):
         try:
             return model.complete(system, user)

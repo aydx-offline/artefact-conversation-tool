@@ -148,10 +148,25 @@ def _models(env, model, judge_model):
         return model, judge_model
     writer_name, judge_name = require_models(env)
     url = env.get("GLM_BASE_URL") or DEFAULT_BASE_URL
+    timeout = _positive_int(env, "GLM_TIMEOUT", 180)
     return (
-        GlmModel(env["GLM_API_KEY"], url, writer_name),
-        GlmModel(env["GLM_API_KEY"], url, judge_name),
+        GlmModel(env["GLM_API_KEY"], url, writer_name, timeout),
+        GlmModel(env["GLM_API_KEY"], url, judge_name, timeout),
     )
+
+
+def _positive_int(env, name, default):
+    try:
+        value = int(env.get(name, default))
+        if value < 1:
+            raise ValueError
+        return value
+    except (TypeError, ValueError):
+        raise SystemExit(f"{name} must be a positive integer") from None
+
+
+def _workers(env):
+    return _positive_int(env, "CA_WORKERS", 2)
 
 
 def _finish(store, run_id, statuses):
@@ -184,7 +199,7 @@ def _generate_one(case, model, brand, clients, store, run_id):
     return status
 
 
-def run_cases(cases, model, brand, clients, store, run_id, cancel_check=lambda: False, on_status=None):
+def run_cases(cases, model, brand, clients, store, run_id, cancel_check=lambda: False, on_status=None, workers=2):
     statuses = {}
 
     def work(case):
@@ -204,7 +219,7 @@ def run_cases(cases, model, brand, clients, store, run_id, cancel_check=lambda: 
             on_status(case.case_id, "running")
         return _generate_one(case, model, brand, clients, store, run_id)
 
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(work, case): case.case_id for case in cases}
         for future in as_completed(futures):
             case_id = futures[future]
@@ -255,6 +270,7 @@ def _batch_command(args, root, env, model):
         store,
         run_id,
         on_status=lambda case_id, status: print(case_id, status) if status != "running" else None,
+        workers=_workers(env),
     )
     _finish(store, run_id, statuses)
     telemetry.flush()

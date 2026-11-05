@@ -43,7 +43,7 @@
 - Before-and-after export writes `cases/before-after.csv`.
 - Export cells for client, history, and product are the resolved Chinese text, not ids.
 - `docs/coverage.md` is written and then work stops until Ann approves it. No `cases/inputs.jsonl` or `cases/tuning.jsonl` before that.
-- The resolved dict passed to prompts has these shapes. `client` is the client-store dict. `products` is a list of catalog dicts. `event` is an event dict or `None`. `history` is a list of `Message` or of dicts with `sender`, `text`, `time`. `occasion`, `tone`, and `length` are Chinese strings; empty `tone` or `length` means the model chooses. `expectations` is a list of strings or a dict `{must, must_not}`. Prompts render only the Chinese fields, with price and dates as digits. Ids such as `lin` and `scarf` and English keys never appear in the prompt text. Revise prompts show only the failing candidates, with their original indexes.
+- The resolved dict passed to prompts has these shapes. `client` is the client-store dict. `products` is a list of catalog dicts. `event` is an event dict or `None`. `history` is a list of `Message` or of dicts with `sender`, `text`, `time`. `occasion` comes from resolved calendar context only for scenario 1; other scenarios use the case's explicit occasion. `tone` and `length` are Chinese strings; empty values mean the model chooses. `expectations` is a list of strings or a dict `{must, must_not}`. Prompts render only the Chinese fields, with price and dates as digits. Ids such as `lin` and `scarf` and English keys never appear in the prompt text. Revise prompts show only the failing candidates, with their original indexes.
 - Scenario 6 client text must contain a marker: price too high uses 贵 or 价格高; comparison uses 别处, 别家, 代购, 其他店, or 别的店; discount uses 折扣, 优惠, 打折, 便宜点, or 便宜一点.
 
 ```python
@@ -410,7 +410,7 @@ Expected: PASS.
 - Consumes: nothing
 - Produces:
   - `class FakeModel` with `complete(self, system, user) -> str` and `.calls`
-  - `complete_with_retries(model, system, user, sleep) -> str` attempts 3 times, sleeps `0.5` then `1.0`
+  - `complete_with_retries(model, system, user, sleep) -> str` attempts 3 times, sleeps `2` then `8` seconds
   - `GlmModel(api_key, base_url, model_name).complete(system, user) -> str`
   - `require_models(env: dict) -> tuple[str, str]` raises `SystemExit` when the key or either model name is missing, or when the two names are equal
 
@@ -486,7 +486,7 @@ Expected: PASS.
 - `recorder.step(case_id, step)` and `recorder.finish(case_id, result)` may be no-ops
 - Status values: `done`, `failed_checks`, `failed`
 
-Resolved dict saved later must include the four brief inputs in full: client profile, scenario plus occasion, event, and time since contact, history, and product records.
+Resolved dict saved later must include the four brief inputs in full: client profile, scenario plus its applicable occasion, event, and time since contact, history, and product records. Calendar context supplies occasion only for scenario 1; other scenarios use an explicit case occasion.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -675,7 +675,7 @@ Expected: FAIL, `ca.cli` missing.
 
 - [ ] **Step 3: Implement**
 
-Load `.env` with a small reader, no extra dependency. `batch` uses `ThreadPoolExecutor(max_workers=4)`. A failed case is marked `failed` and the batch continues. Progress is one printed line per case: `case_id status`.
+Load `.env` with a small reader, no extra dependency. `batch` uses two workers by default and `CA_WORKERS` can override that count. A failed case is marked `failed` and the batch continues. Progress is one printed line per case: `case_id status`.
 
 A smoke test in `tests/test_smoke.py` calls `GlmModel` once and skips unless `GLM_API_KEY` and `WRITER_MODEL` are set. It is not part of the default unit run.
 

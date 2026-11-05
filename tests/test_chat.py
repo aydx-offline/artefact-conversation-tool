@@ -22,11 +22,11 @@ class ChatTests(unittest.TestCase):
 
     def test_extracts_case_for_existing_client(self):
         model = FakeModel([
-            reply(
+            "回复如下：\n```json\n" + reply(
                 client_name="林女士",
                 scenario="价格异议：和其他渠道比较",
                 client_message="价格比别处贵",
-            )
+            ) + "\n```"
         ])
 
         case = extract_case("林女士说价格比别处贵，帮我回一下。", model, self.clients, NOW)

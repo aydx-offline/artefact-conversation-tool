@@ -1,8 +1,7 @@
-import json
 import time
 import uuid
 
-from ca.llm import complete_with_retries
+from ca.llm import complete_with_retries, parse_json
 from ca.prompts import SCENARIO_ZH, chat_prompt
 from ca.schema import Case, CaseError, Message, prose_is_chinese
 
@@ -17,13 +16,13 @@ def extract_case(request, model, clients, now):
     system, user = chat_prompt(request)
     raw = complete_with_retries(model, system, user, time.sleep)
     try:
-        extracted = json.loads(raw)
+        extracted = parse_json(raw)
         name = extracted["client_name"]
         scenario = {value: key for key, value in SCENARIO_ZH.items()}[extracted["scenario"]]
         client_message = extracted["client_message"]
         if not all(isinstance(value, str) for value in (name, client_message)):
             raise TypeError
-    except (json.JSONDecodeError, KeyError, TypeError):
+    except (KeyError, TypeError):
         raise CaseError("request", INVALID_REQUEST) from None
 
     client_id = next(

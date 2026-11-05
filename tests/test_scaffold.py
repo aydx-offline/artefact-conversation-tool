@@ -153,13 +153,16 @@ class CaptureStepTest(unittest.TestCase):
         self.assertEqual(dest, ROOT / "log" / "screenshots" / "step-05-spec-revision.png")
         with self.assertRaises(SystemExit):
             module.destination("notes")
-        existing = ROOT / "log" / "screenshots" / "step-01-review-brief.png"
+        real = ROOT / "log" / "screenshots" / "step-01-review-brief.png"
+        before = real.read_bytes() if real.exists() else None
+        existing = ROOT / "log" / "screenshots" / "step-99-test-only.png"
         existing.write_bytes(b"x")
         try:
             with self.assertRaises(SystemExit):
                 module.refuse_overwrite(existing)
         finally:
             existing.unlink()
+        self.assertEqual(real.read_bytes() if real.exists() else None, before)
 
 
 if __name__ == "__main__":

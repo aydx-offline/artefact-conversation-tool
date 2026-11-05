@@ -17,6 +17,7 @@ from ca.cli import (
     _finish,
     _manifest_start,
     _models,
+    _workers,
     read_manifest,
     run_cases,
 )
@@ -149,16 +150,9 @@ def _run_batch(deps, state, cases, source, model):
     try:
         clients = load_clients(_clients_path(deps))
         brand = _get(deps, "brand") or load_brand(root / "data" / "brand")
-        statuses = _get(deps, "run_cases", run_cases)(
-            cases,
-            model,
-            brand,
-            clients,
-            store,
-            state.run_id,
-            state.cancel.is_set,
-            state.update,
-        )
+        runner = _get(deps, "run_cases", run_cases)
+        args = (cases, model, brand, clients, store, state.run_id, state.cancel.is_set, state.update)
+        statuses = runner(*args, workers=_get(deps, "workers", 2)) if runner is run_cases else runner(*args)
         _finish(store, state.run_id, statuses)
         telemetry = _get(deps, "telemetry")
         if telemetry:
@@ -440,7 +434,10 @@ def handle(method, path, body, deps, headers=None):
         return 400, {"error": str(error)}
     except RuntimeError as error:
         message = str(error)
-        if any(word in message.lower() for word in ("key", "secret", "token")):
+        settings = {"GLM_API_KEY", "WRITER_MODEL", "JUDGE_MODEL"}
+        if message not in {f"Missing required setting: {name}" for name in settings} and any(
+            word in message.lower() for word in ("key", "secret", "token")
+        ):
             message = message.split(":", 1)[0].strip() or "模型配置不可用"
         return 503, {"error": message}
     except Exception:
@@ -514,6 +511,7 @@ def main(argv=None):
         telemetry=open_telemetry(env),
         batch_state=BatchState(),
         port=args.port,
+        workers=_workers(env),
     )
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"http://{args.host}:{args.port}")

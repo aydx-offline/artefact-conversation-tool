@@ -204,6 +204,15 @@ class WebTest(unittest.TestCase):
                 self.assertIn("缺少 GLM 配置", payload["error"])
                 self.assertNotIn("key", payload["error"].lower())
 
+    def test_missing_setting_name_is_preserved(self):
+        self.deps.model = None
+        self.deps.model_error = "Missing required setting: GLM_API_KEY"
+
+        status, payload = self.call("POST", "/api/chat", {"request": "请帮林女士重新联系。"})
+
+        self.assertEqual(status, 503)
+        self.assertEqual(payload["error"], "Missing required setting: GLM_API_KEY")
+
     def test_client_routes_include_put(self):
         status, payload = self.call("GET", "/api/clients")
         self.assertEqual(status, 200)
@@ -467,7 +476,7 @@ class GateModel:
         if '"picks"' in system:
             with self.lock:
                 self.count += 1
-                if self.count == 4:
+                if self.count == 2:
                     self.started.set()
             self.release.wait(2)
             return plan_reply(self.brand)
