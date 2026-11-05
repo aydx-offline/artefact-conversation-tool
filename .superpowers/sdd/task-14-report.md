@@ -34,3 +34,10 @@ Complete.
 
 - The page was not visually tested and no screenshot was created, as instructed.
 - Step 21 remains `PENDING` in `log/LOG.md`, consistent with the screenshot ruling.
+
+## Fix round 1
+
+Commit `407968a` (`fix: harden local web app`) removes dynamic `innerHTML`, normalizes form arrays and nulls, hardens HTTP validation and error handling, preserves failed batch state, and serializes atomic client updates.
+
+- Focused tests: 27 passed.
+- Full suite: 163 ran; only `test_step_screenshots_are_real_pngs_and_the_log_links_them` failed as expected, with one configured skip.
