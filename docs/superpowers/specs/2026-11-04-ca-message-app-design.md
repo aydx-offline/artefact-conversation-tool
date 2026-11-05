@@ -84,6 +84,7 @@ Code works these out from the timestamp before any model call:
 
 - **Festival:** a festival counts when the timestamp is on its date or up to 3 days before. Dates come from a festival calendar in the brand data, which lists solar and lunar festivals by year, so no lunar-date library is needed.
 - **Birthday:** from the client's birthday, with the same window.
+- **Both:** If a birthday and a festival both fall in the window, the occasion names both, birthday first.
 - **Time since contact:** days since the last purchase and months since the last visit, for post-purchase care and reactivation.
 
 If a scenario 1 case has no festival or birthday in the window and no `occasion`, it is rejected with a message asking the CA to name the occasion. The tool never invents one.
