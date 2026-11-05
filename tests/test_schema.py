@@ -1,5 +1,9 @@
+import json
+import tempfile
 import unittest
-from ca.schema import Case, CaseError, Message, validate_case
+from pathlib import Path
+
+from ca.schema import Case, CaseError, Message, load_case, validate_case
 
 ALLOWED = ["Chengbai"]
 
@@ -15,6 +19,21 @@ def case(**kwargs):
     return Case(**base)
 
 class SchemaTest(unittest.TestCase):
+    def test_load_case_accepts_json_and_jsonl_rows(self):
+        row = {
+            "case_id": "c1",
+            "client_id": "lin",
+            "scenario": "1 Birthday and festive greetings",
+            "timestamp": "2026-09-25T10:00:00+08:00",
+            "history": [{"sender": "client", "text": "中秋快乐", "time": "2026-09-25T09:00:00+08:00"}],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "case.json"
+            path.write_text(json.dumps(row, ensure_ascii=False), encoding="utf-8")
+            loaded = load_case(path)
+        self.assertEqual(loaded.case_id, "c1")
+        self.assertEqual(loaded.history, [Message("client", "中秋快乐", "2026-09-25T09:00:00+08:00")])
+
     def test_scenario_6_needs_a_client_message(self):
         item = case(scenario="6 Price objection — price too high", history=[])
         with self.assertRaises(CaseError) as caught:

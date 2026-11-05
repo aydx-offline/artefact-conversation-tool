@@ -20,20 +20,21 @@ def _write_once(path, obj):
 
 
 class RunStore:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, version=GENERATOR_VERSION):
         self.root = Path(root)
+        self.version = version
         self._locks = {}
         self._locks_guard = threading.Lock()
 
     def _run_dir(self, run_id):
-        return self.root / GENERATOR_VERSION / run_id
+        return self.root / self.version / run_id
 
     def _lock(self, run_id):
         with self._locks_guard:
             return self._locks.setdefault(run_id, threading.Lock())
 
     def begin(self, manifest: dict) -> str:
-        parent = self.root / GENERATOR_VERSION
+        parent = self.root / self.version
         parent.mkdir(parents=True, exist_ok=True)
         started = datetime.now(timezone.utc)
         instant = started

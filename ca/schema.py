@@ -1,6 +1,8 @@
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 SCENARIOS = (
     "1 Birthday and festive greetings",
@@ -48,6 +50,13 @@ class Case:
     length: str = ""
     split: str = ""
     expectations: list = field(default_factory=list)
+
+
+def load_case(source):
+    data = json.loads(Path(source).read_text(encoding="utf-8")) if isinstance(source, (str, Path)) else dict(source)
+    if data.get("history") is not None:
+        data["history"] = [message if isinstance(message, Message) else Message(**message) for message in data["history"]]
+    return Case(**data)
 
 
 def prose_is_chinese(text, allowed_names):
