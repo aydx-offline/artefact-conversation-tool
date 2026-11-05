@@ -2,6 +2,7 @@ import json
 import re
 import unittest
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 from ca.checks import has_offer
@@ -118,14 +119,52 @@ class CaseFilesTest(unittest.TestCase):
         for rows in self.rows.values():
             for row in rows:
                 client = self.clients[row["client_id"]]
+                owned = {purchase["product_id"] for purchase in client["purchases"]}
+                if row["scenario"] == "2 Product recommendation":
+                    self.assertNotIn(row["product_ids"][0], owned, row["case_id"])
                 if row["scenario"] == "3 Post-purchase care":
-                    self.assertIn(row["product_ids"][0], {purchase["product_id"] for purchase in client["purchases"]})
+                    self.assertIn(row["product_ids"][0], owned, row["case_id"])
                 if row["scenario"] == "4 Reactivation":
                     context = resolve_context(row["timestamp"], client, self.festivals, "")
                     self.assertGreaterEqual(context.months_since_visit, 4, coverage[row["case_id"]]["note"])
                 for message in row["history"]:
                     if message["sender"] == "ca":
                         self.assertFalse(has_offer(message["text"], self.rules["offer_patterns"]))
+
+    def test_client_purchase_timeline_is_consistent(self):
+        for client_id, client in self.clients.items():
+            last_visit = date.fromisoformat(client["last_visit"])
+            for purchase in client["purchases"]:
+                self.assertGreaterEqual(last_visit, date.fromisoformat(purchase["date"]), client_id)
+
+    def test_used_clients_have_no_purchase_after_case_timestamp(self):
+        earliest_case = {}
+        for rows in self.rows.values():
+            for row in rows:
+                day = date.fromisoformat(row["timestamp"][:10])
+                earliest_case[row["client_id"]] = min(day, earliest_case.get(row["client_id"], day))
+        for client_id, case_day in earliest_case.items():
+            for purchase in self.clients[client_id]["purchases"]:
+                self.assertLessEqual(date.fromisoformat(purchase["date"]), case_day, client_id)
+
+    def test_history_repetition_is_bounded(self):
+        greeting_whitelist = {
+            "谢谢惦记，我最近事情多，一直没顾上。",
+        }
+        cases = {
+            row["case_id"]: {
+                message["text"] for message in row["history"]
+                if message["text"] not in greeting_whitelist
+            }
+            for rows in self.rows.values()
+            for row in rows
+        }
+        counts = Counter(text for lines in cases.values() for text in lines)
+        self.assertFalse({text: count for text, count in counts.items() if count > 3})
+        ids = list(cases)
+        for index, left in enumerate(ids):
+            for right in ids[index + 1:]:
+                self.assertLessEqual(len(cases[left] & cases[right]), 1, f"{left}, {right}")
 
     def test_frozen_version(self):
         used = sorted({row["client_id"] for rows in self.rows.values() for row in rows})

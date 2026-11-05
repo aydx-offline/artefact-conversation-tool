@@ -30,7 +30,7 @@
         "date": "2025-02-12"
       }
     ],
-    "last_visit": "2025-02-03",
+    "last_visit": "2025-02-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -48,7 +48,7 @@
         "date": "2025-03-12"
       }
     ],
-    "last_visit": "2025-03-04",
+    "last_visit": "2025-03-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -66,7 +66,7 @@
         "date": "2025-12-21"
       }
     ],
-    "last_visit": "2025-04-05",
+    "last_visit": "2025-12-21",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -84,7 +84,7 @@
         "date": "2025-05-12"
       }
     ],
-    "last_visit": "2025-05-06",
+    "last_visit": "2025-05-12",
     "notes": "久未联系，仅作问候",
     "history": []
   },
@@ -100,9 +100,13 @@
       {
         "product_id": "pearl",
         "date": "2025-06-12"
+      },
+      {
+        "product_id": "scarf",
+        "date": "2025-05-10"
       }
     ],
-    "last_visit": "2025-06-07",
+    "last_visit": "2025-06-12",
     "notes": "从旧围巾的保养服务问候",
     "history": []
   },
@@ -118,9 +122,13 @@
       {
         "product_id": "dress",
         "date": "2025-07-12"
+      },
+      {
+        "product_id": "scarf",
+        "date": "2025-10-12"
       }
     ],
-    "last_visit": "2025-07-08",
+    "last_visit": "2025-10-12",
     "notes": "从既有围巾轻启话题",
     "history": []
   },
@@ -135,10 +143,10 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2026-07-10"
+        "date": "2025-05-18"
       }
     ],
-    "last_visit": "2025-08-09",
+    "last_visit": "2025-05-18",
     "notes": "不愉快的经历之后重新联系",
     "history": []
   },
@@ -156,7 +164,7 @@
         "date": "2025-09-12"
       }
     ],
-    "last_visit": "2025-01-10",
+    "last_visit": "2025-09-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -192,7 +200,7 @@
         "date": "2026-01-23"
       }
     ],
-    "last_visit": "2025-03-12",
+    "last_visit": "2026-01-23",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -207,10 +215,10 @@
     "purchases": [
       {
         "product_id": "yunwen",
-        "date": "2026-08-24"
+        "date": "2026-02-24"
       }
     ],
-    "last_visit": "2025-04-13",
+    "last_visit": "2026-02-24",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -243,10 +251,14 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2026-07-12"
+        "date": "2026-05-20"
+      },
+      {
+        "product_id": "scarf",
+        "date": "2025-11-12"
       }
     ],
-    "last_visit": "2025-06-15",
+    "last_visit": "2026-05-20",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -282,7 +294,7 @@
         "date": "2026-02-24"
       }
     ],
-    "last_visit": "2025-08-17",
+    "last_visit": "2026-02-24",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -300,7 +312,7 @@
         "date": "2025-08-12"
       }
     ],
-    "last_visit": "2025-01-18",
+    "last_visit": "2025-08-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -314,11 +326,11 @@
     "preferences": "通勤时常用丝巾，讲究实用",
     "purchases": [
       {
-        "product_id": "pearl",
+        "product_id": "dress",
         "date": "2025-09-12"
       }
     ],
-    "last_visit": "2025-02-19",
+    "last_visit": "2025-09-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -336,7 +348,7 @@
         "date": "2026-03-25"
       }
     ],
-    "last_visit": "2025-03-20",
+    "last_visit": "2026-03-25",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -350,7 +362,7 @@
     "preferences": "关注衣物收纳与耐久穿着",
     "purchases": [
       {
-        "product_id": "yunwen",
+        "product_id": "pearl",
         "date": "2025-02-12"
       }
     ],
@@ -390,7 +402,7 @@
         "date": "2025-04-12"
       }
     ],
-    "last_visit": "2025-06-03",
+    "last_visit": "2025-12-01",
     "notes": "新客沉默后的克制问候",
     "history": []
   },
@@ -405,10 +417,10 @@
     "purchases": [
       {
         "product_id": "yunwen",
-        "date": "2026-07-14"
+        "date": "2026-06-20"
       }
     ],
-    "last_visit": "2025-07-04",
+    "last_visit": "2026-06-20",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -422,7 +434,7 @@
     "preferences": "关注场合搭配与面料护理",
     "purchases": [
       {
-        "product_id": "yunwen",
+        "product_id": "dress",
         "date": "2025-06-12"
       }
     ],
@@ -444,7 +456,7 @@
         "date": "2026-04-26"
       }
     ],
-    "last_visit": "2025-01-06",
+    "last_visit": "2026-04-26",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -462,7 +474,7 @@
         "date": "2025-08-12"
       }
     ],
-    "last_visit": "2025-02-07",
+    "last_visit": "2025-08-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -480,7 +492,7 @@
         "date": "2025-09-12"
       }
     ],
-    "last_visit": "2025-03-08",
+    "last_visit": "2025-09-12",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },
@@ -498,7 +510,7 @@
         "date": "2026-05-24"
       }
     ],
-    "last_visit": "2025-04-09",
+    "last_visit": "2026-05-24",
     "notes": "喜欢顾问说得简短具体，不喜欢催促",
     "history": []
   },

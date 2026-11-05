@@ -25,7 +25,7 @@ The final set is reserved for submission evaluation. The tuning set is separate 
 | f18 | 3 Post-purchase care | 常客 | 正式 | none | dress | — | 2026-04-26T14:00:00+08:00 | 长裙首次购后关怀 |
 | f19 | 3 Post-purchase care | 新客 | 正式 | none | pearl | — | 2026-05-28T10:30:00+08:00 | 新客耳钉保养说明 |
 | f20 | 3 Post-purchase care | 新客 | 熟 | short | scarf | — | 2026-06-25T16:00:00+08:00 | 简短反馈后的围巾关怀 |
-| f21 | 3 Post-purchase care | 常客 | 熟 | long | yunwen | — | 2026-09-25T10:00:00+08:00 | 中秋；节日前询问大衣使用情况 |
+| f21 | 3 Post-purchase care | 常客 | 熟 | long | yunwen | — | 2026-09-25T10:00:00+08:00 | 中秋；当天询问大衣使用情况 |
 | f22 | 4 Reactivation | 顶级 | 熟 | none | — | — | 2026-01-30T10:00:00+08:00 | 久未联系，仅作问候 |
 | f23 | 4 Reactivation | 顶级 | 正式 | short | scarf | — | 2026-02-26T14:00:00+08:00 | 从既有围巾轻启话题 |
 | f24 | 4 Reactivation | 常客 | 熟 | long | — | — | 2026-03-30T11:00:00+08:00 | 长期往来后的重新联系 |
@@ -82,6 +82,6 @@ The final set is reserved for submission evaluation. The tuning set is separate 
 
 ## Frozen
 
-`fa94dd520f428dd548235ddb59d2516827ca8f27be4177e75fecda40b3210577`
+`3be12b2b59b6e33fcc1734a283472b810e0de8c598dbe6f1a3bc44903e80925d`
 
 任一案例文件或已使用的客户档案发生变化时，此版本号随之变化。
