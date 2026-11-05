@@ -24,7 +24,7 @@ def judge_scores(value=3):
     rows = []
     for candidate in range(3):
         rows.extend(
-            {"candidate": candidate, "item": item, "value": 1, "reason": "符合输入"}
+            {"candidate": candidate, "item": item, "value": "pass", "reason": "符合输入"}
             for item in JUDGE_FACT_ITEMS
         )
         rows.extend(
@@ -85,12 +85,73 @@ class JudgeTests(unittest.TestCase):
         self.assertNotEqual(first, second)
 
     def test_invalid_judge_json_raises_clear_error(self):
-        with self.assertRaisesRegex(ValueError, "judge JSON"):
+        raw = "不是 JSON"
+        with self.assertRaisesRegex(ValueError, "judge JSON") as raised:
             evaluate_case(case_file(), FakeModel(["不是 JSON"]), BRAND)
+        self.assertEqual(raised.exception.raw, raw)
+
+    def test_evaluate_case_normalises_boolean_fact_values(self):
+        scores = judge_scores()
+        scores[0]["value"] = True
+        scores[1]["value"] = False
+
+        rows = evaluate_case(
+            case_file(),
+            FakeModel([json.dumps({"scores": scores}, ensure_ascii=False)]),
+            BRAND,
+        )
+
+        self.assertEqual(rows[0]["value"], "pass")
+        self.assertEqual(rows[1]["value"], "fail")
+
+    def test_evaluate_case_rejects_invalid_score_grids_with_raw_reply(self):
+        invalid_scores = {
+            "bool candidate": [{**row, "candidate": True} if index == 0 else row
+                               for index, row in enumerate(judge_scores())],
+            "candidate out of range": [{**row, "candidate": 3} if index == 0 else row
+                                       for index, row in enumerate(judge_scores())],
+            "unknown item": [{**row, "item": "未知"} if index == 0 else row
+                             for index, row in enumerate(judge_scores())],
+            "bad fact": [{**row, "value": 1} if index == 0 else row
+                         for index, row in enumerate(judge_scores())],
+            "bool score": [{**row, "value": True} if index == 2 else row
+                           for index, row in enumerate(judge_scores())],
+            "float score": [{**row, "value": 3.0} if index == 2 else row
+                            for index, row in enumerate(judge_scores())],
+            "score out of range": [{**row, "value": 6} if index == 2 else row
+                                   for index, row in enumerate(judge_scores())],
+            "duplicate": judge_scores() + [judge_scores()[0]],
+            "missing": judge_scores()[:-1],
+        }
+        for label, scores in invalid_scores.items():
+            raw = json.dumps({"scores": scores}, ensure_ascii=False)
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(ValueError, "invalid judge") as raised:
+                    evaluate_case(case_file(), FakeModel([raw]), BRAND)
+                self.assertEqual(raised.exception.raw, raw)
 
     def test_candidate_is_acceptable_at_threshold(self):
         scores = [row for row in judge_scores() if row["candidate"] == 0]
         self.assertTrue(candidate_acceptable([Check("count", True)], scores))
+
+    def test_candidate_argument_filters_scores_and_check_indexes(self):
+        scores = judge_scores()
+        scores[-1]["value"] = 2
+        check = Check("length", False, "candidate 2 failed", [2])
+
+        self.assertTrue(candidate_acceptable([check], scores, candidate=0))
+        self.assertFalse(candidate_acceptable([check], scores, candidate=2))
+
+    def test_candidate_acceptable_uses_strict_validated_values(self):
+        scores = [row for row in judge_scores() if row["candidate"] == 0]
+        fact = next(row for row in scores if row["item"] in JUDGE_FACT_ITEMS)
+        scored = next(row for row in scores if row["item"] in JUDGE_SCORE_ITEMS)
+
+        fact["value"] = True
+        self.assertFalse(candidate_acceptable([Check("count", True)], scores))
+        fact["value"] = "pass"
+        scored["value"] = 3.0
+        self.assertFalse(candidate_acceptable([Check("count", True)], scores))
 
     def test_low_judge_item_is_not_acceptable(self):
         scores = [row for row in judge_scores() if row["candidate"] == 0]

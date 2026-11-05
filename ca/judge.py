@@ -8,6 +8,12 @@ from ca.prompts import JUDGE_FACT_ITEMS, JUDGE_SCORE_ITEMS, judge_prompt
 from ca.version import JUDGE_VERSION
 
 
+class JudgeError(ValueError):
+    def __init__(self, message, raw):
+        super().__init__(message)
+        self.raw = raw
+
+
 def _get(item, name, default=None):
     return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
 
@@ -15,6 +21,41 @@ def _get(item, name, default=None):
 def _evaluation_id():
     started = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     return f"{started}:{uuid.uuid4().hex}"
+
+
+def _validated_scores(raw):
+    try:
+        scores = json.loads(raw)["scores"]
+        if not isinstance(scores, list) or not all(isinstance(row, dict) for row in scores):
+            raise TypeError
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise JudgeError("invalid judge JSON: expected a scores list", raw) from error
+
+    items = set(JUDGE_FACT_ITEMS + JUDGE_SCORE_ITEMS)
+    expected = {(candidate, item) for candidate in range(3) for item in items}
+    seen = set()
+    for row in scores:
+        candidate = row.get("candidate")
+        item = row.get("item")
+        value = row.get("value")
+        if isinstance(candidate, bool) or not isinstance(candidate, int) or candidate not in range(3):
+            raise JudgeError("invalid judge row: candidate must be an integer from 0 to 2", raw)
+        if item not in items:
+            raise JudgeError("invalid judge row: unknown item", raw)
+        key = (candidate, item)
+        if key in seen:
+            raise JudgeError("invalid judge rows: duplicate candidate and item", raw)
+        seen.add(key)
+        if item in JUDGE_FACT_ITEMS:
+            if isinstance(value, bool):
+                row["value"] = "pass" if value else "fail"
+            elif value not in ("pass", "fail"):
+                raise JudgeError("invalid judge row: fact value must be pass or fail", raw)
+        elif isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 5:
+            raise JudgeError("invalid judge row: score value must be an integer from 1 to 5", raw)
+    if seen != expected:
+        raise JudgeError("invalid judge rows: all candidates and items are required", raw)
+    return scores
 
 
 def evaluate_case(case_file: dict, model, brand) -> list[dict]:
@@ -27,13 +68,7 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
         brand,
     )
     raw = complete_with_retries(model, *prompt, time.sleep)
-    try:
-        data = json.loads(raw)
-        scores = data["scores"]
-        if not isinstance(scores, list) or not all(isinstance(row, dict) for row in scores):
-            raise TypeError
-    except (json.JSONDecodeError, KeyError, TypeError) as error:
-        raise ValueError("invalid judge JSON: expected a scores list") from error
+    scores = _validated_scores(raw)
 
     evaluation_id = _evaluation_id()
     common = {
@@ -65,11 +100,13 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
     return rows
 
 
-def candidate_acceptable(checks, scores) -> bool:
-    candidates = {row.get("candidate") for row in scores if row.get("candidate") is not None}
-    if len(candidates) != 1:
-        return False
-    candidate = candidates.pop()
+def candidate_acceptable(checks, scores, candidate=None) -> bool:
+    if candidate is None:
+        candidates = {row.get("candidate") for row in scores if row.get("candidate") is not None}
+        if len(candidates) != 1:
+            return False
+        candidate = candidates.pop()
+    scores = [row for row in scores if row.get("candidate") == candidate]
     for check in checks:
         if _get(check, "passed"):
             continue
@@ -78,12 +115,14 @@ def candidate_acceptable(checks, scores) -> bool:
             return False
 
     by_item = {row.get("item"): row.get("value") for row in scores}
-    if any(by_item.get(item) not in (1, True, "pass") for item in JUDGE_FACT_ITEMS):
+    if any(by_item.get(item) != "pass" for item in JUDGE_FACT_ITEMS):
         return False
-    try:
-        return all(float(by_item[item]) >= 3 for item in JUDGE_SCORE_ITEMS)
-    except (KeyError, TypeError, ValueError):
-        return False
+    return all(
+        isinstance(by_item.get(item), int)
+        and not isinstance(by_item[item], bool)
+        and by_item[item] >= 3
+        for item in JUDGE_SCORE_ITEMS
+    )
 
 
 def case_good(per_candidate: list[bool]) -> bool:
