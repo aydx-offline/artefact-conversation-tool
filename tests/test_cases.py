@@ -115,6 +115,19 @@ class CaseFilesTest(unittest.TestCase):
                     expected = "生日" if note.startswith("birthday") else note.split("；")[0]
                 self.assertEqual(context.occasion, expected, row["case_id"])
 
+    def test_non_greeting_cases_do_not_resolve_birthdays(self):
+        for rows in self.rows.values():
+            for row in rows:
+                if row["scenario"] == "1 Birthday and festive greetings":
+                    continue
+                context = resolve_context(
+                    row["timestamp"],
+                    self.clients[row["client_id"]],
+                    self.festivals,
+                    "",
+                )
+                self.assertFalse(context.birthday, row["case_id"])
+
     def test_owned_products_reactivation_age_and_safe_ca_messages(self):
         coverage = {
             row["id"]: row for rows in self.coverage.values() for row in rows
@@ -151,19 +164,16 @@ class CaseFilesTest(unittest.TestCase):
                 self.assertLessEqual(date.fromisoformat(purchase["date"]), case_day, client_id)
 
     def test_histories_alternate_senders(self):
-        exceptions = {}
         for rows in self.rows.values():
             for row in rows:
-                repeated = sum(
+                self.assertFalse(any(
                     left["sender"] == right["sender"]
                     for left, right in zip(row["history"], row["history"][1:])
-                )
-                if repeated:
-                    exceptions[row["case_id"]] = repeated
-        self.assertTrue(all(count == 1 for count in exceptions.values()), exceptions)
-        self.assertLessEqual(len(exceptions), 5, exceptions)
+                ), row["case_id"])
 
     def test_client_reuse_is_bounded_and_spaced(self):
+        self.assertLessEqual(24, len(self.clients))
+        self.assertLessEqual(len(self.clients), 30)
         uses = {}
         for rows in self.rows.values():
             for row in rows:
@@ -202,7 +212,7 @@ class CaseFilesTest(unittest.TestCase):
             for row in rows
         }
         counts = Counter(text for lines in cases.values() for text in lines)
-        self.assertFalse({text: count for text, count in counts.items() if count > 2})
+        self.assertFalse({text: count for text, count in counts.items() if count > 1})
         ids = list(cases)
         for index, left in enumerate(ids):
             for right in ids[index + 1:]:
