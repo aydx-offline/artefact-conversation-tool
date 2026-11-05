@@ -1,14 +1,26 @@
-# Artefact written challenge
+# CA message app
 
-A fictional luxury house. This repo will draft three Chinese WeChat messages for Client Advisors. Follow `docs/superpowers/plans/2026-11-04-ca-message-app.md`. The generator is not built yet.
+This local tool drafts three Chinese WeChat messages for a fictional luxury house. Copy `.env.example` to `.env` and add the GLM model names and API key. Langfuse settings are optional.
 
-Do not publish the brief. Submit by the end of 2026-11-09.
+## Docker
 
-- `AGENT.md` — manual for agents in this repo
-- `log/LOG.md` — work log
-- `cases/cases.csv` — case contract, header only
-- `docs/rubric.md` — draft quality bar
-- `docs/superpowers/plans/2026-11-04-project-scaffold.md` — scaffold
-- `docs/superpowers/plans/2026-11-04-ca-message-app.md` — implementation plan
-- `docs/superpowers/specs/2026-11-04-ca-message-app-design.md` — app design, draft
-- `docs/future-implementation.md` — heavier designs, not built
+Build and run the web page with the challenge commands:
+
+```sh
+docker build -t ca-messages .
+docker run --env-file .env -p 8765:8765 -v "$PWD/runs:/app/runs" -v "$PWD/data:/app/data" ca-messages
+```
+
+Open `http://127.0.0.1:8765`. The image listens on `0.0.0.0` so Docker can publish the service; bind the published port to host loopback to keep it off the local network:
+
+```sh
+docker run --env-file .env -p 127.0.0.1:8765:8765 -v "$PWD/runs:/app/runs" -v "$PWD/data:/app/data" ca-messages
+```
+
+Run the default tuning batch through the CLI:
+
+```sh
+docker run --rm --env-file .env -v "$PWD/runs:/app/runs" -v "$PWD/data:/app/data" ca-messages python -m ca batch
+```
+
+Project guidance and records are in `AGENT.md`, `log/LOG.md`, `docs/rubric.md`, and `cases/cases.csv`. Do not publish the brief. Submission is due 2026-11-09.

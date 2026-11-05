@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import threading
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
@@ -487,12 +488,17 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-def main(argv=None):
+def _server_args(argv=None, env=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("port", nargs="?", type=int, default=8765)
-    args = parser.parse_args(argv)
+    parser.add_argument("--host", default=(env or os.environ).get("CA_WEB_HOST", "127.0.0.1"))
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
     root = Path.cwd()
     env = _env(root)
+    args = _server_args(argv, env)
     model = None
     model_error = ""
     try:
@@ -509,8 +515,8 @@ def main(argv=None):
         batch_state=BatchState(),
         port=args.port,
     )
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"http://127.0.0.1:{args.port}")
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    print(f"http://{args.host}:{args.port}")
     server.serve_forever()
 
 

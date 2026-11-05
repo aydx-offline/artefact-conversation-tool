@@ -1,0 +1,11 @@
+.env
+runs
+.git
+.worktrees
+.superpowers
+log
+Written_Challenge_Brief.pdf
+__pycache__
+*.py[cod]
+.DS_Store
+.venv

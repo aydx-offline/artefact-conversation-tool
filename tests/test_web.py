@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import shutil
 import tempfile
 import threading
@@ -76,6 +77,15 @@ class WebTest(unittest.TestCase):
         from ca.web import handle
 
         return handle(method, path, body, self.deps, headers=headers)
+
+    def test_server_host_uses_argument_then_environment_then_loopback(self):
+        from ca.web import _server_args
+
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(_server_args([]).host, "127.0.0.1")
+        with patch.dict(os.environ, {"CA_WEB_HOST": "0.0.0.0"}, clear=True):
+            self.assertEqual(_server_args([]).host, "0.0.0.0")
+            self.assertEqual(_server_args(["--host", "127.0.0.1"]).host, "127.0.0.1")
 
     def case(self, **changes):
         value = {
