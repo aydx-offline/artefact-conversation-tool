@@ -26,7 +26,7 @@ class RunStore:
         self._locks = {}
         self._locks_guard = threading.Lock()
 
-    def _run_dir(self, run_id):
+    def run_dir(self, run_id):
         return self.root / self.version / run_id
 
     def _lock(self, run_id):
@@ -40,7 +40,7 @@ class RunStore:
         instant = started
         while True:
             run_id = _run_id(instant)
-            run_dir = self._run_dir(run_id)
+            run_dir = self.run_dir(run_id)
             try:
                 run_dir.mkdir()
                 break
@@ -58,17 +58,17 @@ class RunStore:
     def append(self, run_id, filename, obj) -> None:
         if filename not in APPEND_FILES:
             raise ValueError(f"not an append-only run file: {filename}")
-        path = self._run_dir(run_id) / filename
+        path = self.run_dir(run_id) / filename
         with self._lock(run_id), path.open("a", encoding="utf-8") as file:
             file.write(_canonical(obj) + "\n")
 
     def write_case(self, run_id, case_id, obj) -> None:
-        cases = self._run_dir(run_id) / "cases"
+        cases = self.run_dir(run_id) / "cases"
         cases.mkdir(exist_ok=True)
         _write_once(cases / f"{case_id}.json", obj)
 
     def finish_manifest(self, run_id, manifest) -> None:
-        _write_once(self._run_dir(run_id) / "manifest.end.json", manifest)
+        _write_once(self.run_dir(run_id) / "manifest.end.json", manifest)
 
 
 def test_set_version(inputs: Path, tuning: Path, profiles: list[dict]) -> str:

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ca.brand import load_brand
 from ca.clients import load_clients, store_hash
-from ca.judge import JudgeError, evaluate_case
+from ca.judge import evaluate_case, evaluation_id
 from ca.llm import GlmModel, require_models
 from ca.pipeline import generate
 from ca.schema import load_case
@@ -114,9 +114,24 @@ def _manifest_start(root, cases, source, writer_model):
         "brand_hash": _hash_path(root / "data" / "brand"),
         "client_store_hash": store_hash(client_path),
         "test_set_version": version,
-        "split": cases[0].split or "single",
+        "split": _shared_split(cases),
         "case_ids": [case.case_id for case in cases],
     }
+
+
+def _shared_split(cases):
+    splits = {case.split or "single" for case in cases}
+    if len(splits) != 1:
+        raise SystemExit("Case file mixes splits")
+    return splits.pop()
+
+
+def _reject_duplicate_ids(cases):
+    seen = set()
+    for case in cases:
+        if case.case_id in seen:
+            raise SystemExit(f"Duplicate case_id: {case.case_id}")
+        seen.add(case.case_id)
 
 
 def _models(env, model, judge_model):
@@ -143,15 +158,19 @@ def _finish(store, run_id, statuses):
 def _generate_one(case, model, brand, clients, store, run_id):
     try:
         result = generate(case, model, brand, clients, None)
-        store.write_case(run_id, case.case_id, _case_file(case, result))
-        status = result.status
+        data = _case_file(case, result)
     except Exception as error:
-        status = "failed"
-        store.write_case(
-            run_id,
-            case.case_id,
-            {"case": asdict(case), "resolved": {}, "steps": [], "candidates": [], "checks": [], "status": status, "error": str(error)},
-        )
+        data = {
+            "case": asdict(case),
+            "resolved": {},
+            "steps": [],
+            "candidates": [],
+            "checks": [],
+            "status": "failed",
+            "error": str(error),
+        }
+    status = data["status"]
+    store.write_case(run_id, case.case_id, data)
     store.append(run_id, "events.jsonl", {"case_id": case.case_id, "status": status})
     return status
 
@@ -168,11 +187,11 @@ def _generate_command(args, root, env, model):
     _finish(store, run_id, {case.case_id: status})
     telemetry.trace_case(case.case_id, input=asdict(case))
     telemetry.flush()
-    case_data = json.loads((store._run_dir(run_id) / "cases" / f"{case.case_id}.json").read_text(encoding="utf-8"))
+    case_data = json.loads((store.run_dir(run_id) / "cases" / f"{case.case_id}.json").read_text(encoding="utf-8"))
     for candidate in case_data["candidates"]:
         print(candidate["text"])
-    print(store._run_dir(run_id))
-    return 0
+    print(store.run_dir(run_id))
+    return int(status == "failed")
 
 
 def _batch_command(args, root, env, model):
@@ -181,6 +200,8 @@ def _batch_command(args, root, env, model):
     cases = [load_case(row) for row in rows]
     if not cases:
         raise SystemExit("Case file is empty")
+    _reject_duplicate_ids(cases)
+    _shared_split(cases)
     writer, _ = _models(env, model, None)
     brand = load_brand(root / "data" / "brand")
     clients = load_clients(root / "data" / "clients.json")
@@ -199,8 +220,8 @@ def _batch_command(args, root, env, model):
             print(case_id, statuses[case_id])
     _finish(store, run_id, statuses)
     telemetry.flush()
-    print(store._run_dir(run_id))
-    return 0
+    print(store.run_dir(run_id))
+    return int(any(status == "failed" for status in statuses.values()))
 
 
 def _evaluate_command(args, root, env, judge_model):
@@ -215,20 +236,23 @@ def _evaluate_command(args, root, env, judge_model):
         if not path.exists():
             continue
         case_file = json.loads(path.read_text(encoding="utf-8"))
+        if case_file.get("status") == "failed" or len(case_file.get("candidates", [])) < 3:
+            print(case_id, "skipped")
+            continue
         try:
             rows = evaluate_case(case_file, judge, brand)
-        except JudgeError as error:
-            rows = [
-                {
-                    "evaluation_id": datetime.now(timezone.utc).isoformat(),
-                    "judge_model": getattr(judge, "model_name", type(judge).__name__),
-                    "judge_version": JUDGE_VERSION,
-                    "case_id": case_id,
-                    "status": "failed",
-                    "raw": error.raw,
-                    "reason": str(error),
-                }
-            ]
+        except Exception as error:
+            row = {
+                "evaluation_id": evaluation_id(),
+                "judge_model": getattr(judge, "model_name", type(judge).__name__),
+                "judge_version": JUDGE_VERSION,
+                "case_id": case_id,
+                "status": "failed",
+                "reason": str(error),
+            }
+            if hasattr(error, "raw"):
+                row["raw"] = error.raw
+            rows = [row]
         for row in rows:
             store.append(args.run, "scores.jsonl", row)
     telemetry.flush()
@@ -274,15 +298,11 @@ def _export_run(args, root):
     manifest = _manifest(run_dir)
     if manifest.get("split") == "tuning":
         raise SystemExit("Refusing to export a tuning run")
-    statuses = manifest.get("case_statuses", {})
-    if any(statuses.get(case_id) != "done" for case_id in manifest["case_ids"]):
-        raise SystemExit("Refusing to export an incomplete run")
     rows = []
     for case_id in manifest["case_ids"]:
         case_file = json.loads((run_dir / "cases" / f"{case_id}.json").read_text(encoding="utf-8"))
         texts = _candidate_texts(case_file)
-        if len(texts) != 3:
-            raise SystemExit(f"Case {case_id} does not have three candidates")
+        texts = (texts + ["", "", ""])[:3]
         resolved = case_file["resolved"]
         rows.append(
             [
@@ -327,7 +347,7 @@ def _export_comparison(args, root):
 
 def _write_csv(path, header, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8-sig", newline="") as file:
+    with path.open("w", encoding="utf-8", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(header)
         writer.writerows(rows)

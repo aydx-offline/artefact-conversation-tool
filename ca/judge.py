@@ -18,7 +18,7 @@ def _get(item, name, default=None):
     return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
 
 
-def _evaluation_id():
+def evaluation_id():
     started = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     return f"{started}:{uuid.uuid4().hex}"
 
@@ -70,9 +70,9 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
     raw = complete_with_retries(model, *prompt, time.sleep)
     scores = _validated_scores(raw)
 
-    evaluation_id = _evaluation_id()
+    current_evaluation_id = evaluation_id()
     common = {
-        "evaluation_id": evaluation_id,
+        "evaluation_id": current_evaluation_id,
         "judge_model": getattr(model, "model_name", type(model).__name__),
         "judge_version": JUDGE_VERSION,
         "case_id": case_id,

@@ -7,11 +7,12 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from ca.brand import load_brand
 from ca.clients import load_clients
 from ca.llm import FakeModel
+from ca.schema import load_case
 from ca.store import RunStore, test_set_version
 from ca.version import GENERATOR_VERSION
 
@@ -93,8 +94,12 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(main(["export", "--run", run_id], root=self.root), 0)
         export = self.root / "cases" / "cases.csv"
-        self.assertTrue(export.read_bytes().startswith(b"\xef\xbb\xbf"))
-        with export.open(encoding="utf-8-sig", newline="") as file:
+        self.assertFalse(export.read_bytes().startswith(b"\xef\xbb\xbf"))
+        self.assertEqual(
+            export.read_text(encoding="utf-8").splitlines()[0],
+            "Case ID,Scenario,Client information,Conversation history,Product information,Output 1,Output 2,Output 3,Generator version",
+        )
+        with export.open(encoding="utf-8", newline="") as file:
             rows = list(csv.DictReader(file))
         self.assertEqual(len(rows), 1)
         self.assertIn("林女士", rows[0]["Client information"])
@@ -120,6 +125,45 @@ class CliTest(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "failed")
         self.assertEqual(rows[0]["raw"], raw)
 
+    def test_evaluate_skips_failed_and_incomplete_cases(self):
+        from ca.cli import main
+
+        run_id = self._stored_status_run(
+            [
+                ("short", "failed_checks", TEXTS[:2]),
+                ("failed", "failed", []),
+            ]
+        )
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([]), root=self.root), 0)
+        self.assertEqual(output.getvalue().splitlines(), ["short skipped", "failed skipped"])
+        self.assertFalse((self.root / "runs" / GENERATOR_VERSION / run_id / "scores.jsonl").exists())
+
+    def test_evaluate_records_unexpected_error_and_continues(self):
+        from ca.cli import main
+        from ca.judge import evaluation_id
+
+        run_id = self._stored_status_run(
+            [
+                ("broken", "done", TEXTS),
+                ("good", "done", TEXTS),
+            ]
+        )
+        error = RuntimeError("judge unavailable")
+        error.raw = "upstream reply"
+        with patch("ca.cli.evaluate_case", side_effect=[error, [{"case_id": "good", "status": "ok"}]]):
+            self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([]), root=self.root), 0)
+        rows = [
+            json.loads(line)
+            for line in (self.root / "runs" / GENERATOR_VERSION / run_id / "scores.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertRegex(rows[0]["evaluation_id"], r"^\d{4}-\d{2}-\d{2}T.*:[0-9a-f]{32}$")
+        self.assertRegex(evaluation_id(), r"^\d{4}-\d{2}-\d{2}T.*:[0-9a-f]{32}$")
+        self.assertEqual(rows[0]["reason"], "judge unavailable")
+        self.assertEqual(rows[0]["raw"], "upstream reply")
+        self.assertEqual(rows[1]["case_id"], "good")
+
     def test_evaluate_appends_to_the_run_version_it_reads(self):
         from ca.cli import main
 
@@ -132,7 +176,7 @@ class CliTest(unittest.TestCase):
         self.assertTrue((previous / run_id / "scores.jsonl").exists())
         self.assertFalse((current / run_id / "scores.jsonl").exists())
 
-    def test_export_refuses_tuning_and_incomplete_runs(self):
+    def test_export_refuses_tuning_but_exports_incomplete_run(self):
         from ca.cli import main
 
         self.case["split"] = "tuning"
@@ -146,9 +190,33 @@ class CliTest(unittest.TestCase):
         (other / "cases").mkdir(parents=True)
         store = RunStore(other / "runs")
         run_id = store.begin({"writer_model": "测试", "brand_hash": "", "client_store_hash": "", "test_set_version": "", "split": "final", "case_ids": ["missing"]})
+        store.write_case(
+            run_id,
+            "missing",
+            {"case": {**self.case, "case_id": "missing"}, "resolved": {}, "candidates": [], "status": "failed"},
+        )
         store.finish_manifest(run_id, {"end": "现在", "case_statuses": {"missing": "failed"}})
-        with self.assertRaises(SystemExit):
-            main(["export", "--run", run_id], root=other)
+        self.assertEqual(main(["export", "--run", run_id], root=other), 0)
+        with (other / "cases" / "cases.csv").open(encoding="utf-8", newline="") as file:
+            row = next(csv.DictReader(file))
+        self.assertEqual([row[f"Output {number}"] for number in range(1, 4)], ["", "", ""])
+
+    def test_export_includes_done_failed_checks_and_failed_cases(self):
+        from ca.cli import main
+
+        run_id = self._stored_status_run(
+            [
+                ("done", "done", TEXTS),
+                ("checks", "failed_checks", TEXTS),
+                ("failed", "failed", []),
+            ]
+        )
+        self.assertEqual(main(["export", "--run", run_id], root=self.root), 0)
+        with (self.root / "cases" / "cases.csv").open(encoding="utf-8", newline="") as file:
+            rows = list(csv.DictReader(file))
+        self.assertEqual([row["Case ID"] for row in rows], ["done", "checks", "failed"])
+        self.assertEqual(rows[1]["Output 1"], TEXTS[0])
+        self.assertEqual([rows[2][f"Output {number}"] for number in range(1, 4)], ["", "", ""])
 
     def test_batch_continues_after_a_failed_case(self):
         from ca.cli import main
@@ -163,7 +231,7 @@ class CliTest(unittest.TestCase):
         inputs.write_text(json.dumps({**self.case, "case_id": "f1"}, ensure_ascii=False) + "\n", encoding="utf-8")
         output = io.StringIO()
         with redirect_stdout(output):
-            self.assertEqual(main(["batch", "--cases", str(cases)], model=SelectiveModel(), root=self.root), 0)
+            self.assertEqual(main(["batch", "--cases", str(cases)], model=SelectiveModel(), root=self.root), 1)
         self.assertIn("c1 done", output.getvalue())
         self.assertIn("c2 failed", output.getvalue())
         run_dir = self.root / "runs" / GENERATOR_VERSION / self.run_id()
@@ -176,6 +244,64 @@ class CliTest(unittest.TestCase):
             manifest["test_set_version"],
             test_set_version(inputs, cases, [load_clients(self.root / "data" / "clients.json")["lin"]]),
         )
+
+    def test_batch_rejects_duplicate_ids_before_begin(self):
+        from ca.cli import main
+
+        cases = self.root / "cases" / "duplicates.jsonl"
+        cases.write_text(
+            "\n".join(json.dumps({**self.case, "case_id": "same"}, ensure_ascii=False) for _ in range(2)),
+            encoding="utf-8",
+        )
+        with patch("ca.cli.RunStore.begin") as begin:
+            with self.assertRaisesRegex(SystemExit, "Duplicate case_id: same"):
+                main(["batch", "--cases", str(cases)], model=FakeModel([]), root=self.root)
+        begin.assert_not_called()
+
+    def test_batch_rejects_mixed_splits(self):
+        from ca.cli import main
+
+        cases = self.root / "cases" / "mixed.jsonl"
+        rows = [
+            {**self.case, "case_id": "final", "split": "final"},
+            {**self.case, "case_id": "tuning", "split": "tuning"},
+        ]
+        cases.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in rows), encoding="utf-8")
+        with patch("ca.cli.RunStore.begin") as begin:
+            with self.assertRaisesRegex(SystemExit, "mixes splits"):
+                main(["batch", "--cases", str(cases)], model=FakeModel([]), root=self.root)
+        begin.assert_not_called()
+
+    def test_generate_returns_one_when_case_fails(self):
+        from ca.cli import main
+
+        self.assertEqual(main(["generate", "--case", str(self.case_path)], model=FakeModel(["bad", "bad"]), root=self.root), 1)
+
+    def test_worker_does_not_rewrite_after_successful_case_write(self):
+        from ca.cli import _generate_one
+
+        class LateFailure:
+            resolved = {}
+            steps = []
+            candidates = []
+            checks = []
+
+            def __init__(self):
+                self.reads = 0
+
+            @property
+            def status(self):
+                self.reads += 1
+                if self.reads == 2:
+                    raise RuntimeError("late failure")
+                return "done"
+
+        case = load_case(self.case_path)
+        store = Mock()
+        result = LateFailure()
+        with patch("ca.cli.generate", return_value=result):
+            self.assertEqual(_generate_one(case, FakeModel([]), BRAND, {}, store, "run"), "done")
+        store.write_case.assert_called_once()
 
     def test_before_after_exports_only_changed_cases(self):
         from ca.cli import main
@@ -207,6 +333,33 @@ class CliTest(unittest.TestCase):
                 },
             )
         store.finish_manifest(run_id, {"end": "现在", "case_statuses": {"c1": "done", "c2": "done"}, "test_set_version": version})
+        return run_id
+
+    def _stored_status_run(self, cases):
+        store = RunStore(self.root / "runs")
+        run_id = store.begin(
+            {
+                "writer_model": "测试",
+                "brand_hash": "",
+                "client_store_hash": "",
+                "test_set_version": "",
+                "split": "final",
+                "case_ids": [case_id for case_id, _, _ in cases],
+            }
+        )
+        for case_id, status, texts in cases:
+            store.write_case(
+                run_id,
+                case_id,
+                {
+                    "case": {**self.case, "case_id": case_id},
+                    "resolved": {"client": {"name": "林女士"}, "history": [], "products": []},
+                    "candidates": [{"text": text} for text in texts],
+                    "checks": [],
+                    "status": status,
+                },
+            )
+        store.finish_manifest(run_id, {"end": "现在", "case_statuses": {case_id: status for case_id, status, _ in cases}})
         return run_id
 
     def test_missing_key_exits_before_begin(self):

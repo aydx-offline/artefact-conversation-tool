@@ -48,6 +48,10 @@ class RunStoreTest(unittest.TestCase):
         self.assertNotIn("end", manifest)
         self.assertIn("写作模型", (run_dir / "manifest.json").read_text(encoding="utf-8"))
 
+    def test_run_dir_is_public(self):
+        run_id = self.begin()
+        self.assertEqual(self.store.run_dir(run_id), self.root / GENERATOR_VERSION / run_id)
+
     def test_begin_uses_the_next_millisecond_on_collision(self):
         instant = datetime(2026, 11, 4, 23, 15, 1, 123000, tzinfo=timezone.utc)
         with patch("ca.store.datetime") as clock:
