@@ -1,7 +1,9 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ca.clients import load_clients, save_client, store_hash
 from ca.schema import CaseError
@@ -51,6 +53,14 @@ class ClientsTest(unittest.TestCase):
         clients = load_clients(self.tmp)
         self.assertEqual(clients["wang"], WANG)
         self.assertIn("lin", clients)
+
+    def test_save_replaces_file_atomically_from_same_directory(self):
+        with patch("ca.clients.os.replace", wraps=os.replace) as replace:
+            save_client(self.tmp, WANG)
+        source, target = map(Path, replace.call_args.args)
+        self.assertEqual(source.parent, self.tmp.parent)
+        self.assertEqual(target, self.tmp)
+        self.assertFalse(source.exists())
 
     def test_hash_changes_with_file(self):
         before = store_hash(self.tmp)

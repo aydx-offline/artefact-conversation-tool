@@ -23,14 +23,14 @@ def chat_reply(name="林女士", scenario="价格异议：和其他渠道比较"
     )
 
 
-def plan_reply(brand):
+def plan_reply(brand, scenario=SCENARIO):
     return json.dumps(
-        {"picks": [{"strategy": value, "reason": "合适"} for value in brand.menus[SCENARIO][:3]]},
+        {"picks": [{"strategy": value, "reason": "合适"} for value in brand.menus[scenario][:3]]},
         ensure_ascii=False,
     )
 
 
-def write_reply(brand):
+def write_reply(brand, scenario=SCENARIO):
     texts = ["林女士，生日快乐，愿您顺心。", "生日将至，愿您日日从容。", "想起您，祝您生日愉快。"]
     return json.dumps(
         {
@@ -42,7 +42,7 @@ def write_reply(brand):
                     "length": "简短",
                     "text": text,
                 }
-                for strategy, text in zip(brand.menus[SCENARIO][:3], texts)
+                for strategy, text in zip(brand.menus[scenario][:3], texts)
             ]
         },
         ensure_ascii=False,
@@ -71,10 +71,10 @@ class WebTest(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def call(self, method, path, body=None):
+    def call(self, method, path, body=None, headers=None):
         from ca.web import handle
 
-        return handle(method, path, body, self.deps)
+        return handle(method, path, body, self.deps, headers=headers)
 
     def case(self, **changes):
         value = {
@@ -114,8 +114,7 @@ class WebTest(unittest.TestCase):
             (self.case(occasion="", timestamp="2026-11-04T10:00:00+08:00"), "occasion"),
             (
                 self.case(
-                    scenario="6 Price objection — comparison",
-                    product_ids=["scarf"],
+                    scenario="4 Reactivation",
                     history=[{"sender": "client", "text": "Price too high", "time": "2026-11-04T10:00:00+08:00"}],
                 ),
                 "history",
@@ -131,6 +130,49 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.deps.model.calls, [])
         self.assertFalse((self.root / "runs").exists())
 
+    def test_generate_rejects_non_string_product_id(self):
+        status, payload = self.call(
+            "POST",
+            "/api/generate",
+            self.case(scenario="2 Product recommendation", product_ids=[{"id": "scarf"}]),
+        )
+        self.assertEqual(status, 400)
+        self.assertIn("product_ids", payload["error"])
+
+    def test_generate_returns_three_candidates_and_writes_run(self):
+        self.deps.model = FakeModel([plan_reply(self.brand), write_reply(self.brand)])
+        status, payload = self.call("POST", "/api/generate", self.case())
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "done")
+        self.assertEqual(len(payload["candidates"]), 3)
+        self.assertTrue(next((self.root / "runs").glob("*/*/manifest.end.json")).is_file())
+
+    def test_chat_case_with_empty_products_can_generate_reactivation(self):
+        scenario = "4 Reactivation"
+        self.deps.model = FakeModel(
+            [
+                chat_reply(scenario="重新联系", message=""),
+                plan_reply(self.brand, scenario),
+                write_reply(self.brand, scenario),
+            ]
+        )
+        status, chat = self.call("POST", "/api/chat", {"request": "请帮林女士重新联系。"})
+        self.assertEqual(status, 200)
+        self.assertEqual(chat["case"]["product_ids"], [])
+        status, generated = self.call("POST", "/api/generate", chat["case"])
+        self.assertEqual(status, 200)
+        self.assertEqual(generated["status"], "done")
+
+    def test_generate_hides_unexpected_exception(self):
+        class SecretFailure(Exception):
+            pass
+
+        with patch("ca.web.generate", side_effect=SecretFailure("api-key-secret")):
+            status, payload = self.call("POST", "/api/generate", self.case())
+        self.assertEqual(status, 500)
+        self.assertNotIn("api-key-secret", payload["error"])
+        self.assertNotIn("Traceback", payload["error"])
+
     def test_client_routes_include_put(self):
         status, payload = self.call("GET", "/api/clients")
         self.assertEqual(status, 200)
@@ -139,6 +181,11 @@ class WebTest(unittest.TestCase):
         status, _ = self.call("PUT", "/api/clients/lin", updated)
         self.assertEqual(status, 200)
         self.assertEqual(load_clients(self.deps.clients_path)["lin"]["preferences"], "喜欢淡色真丝")
+
+    def test_client_post_is_create_only(self):
+        client = load_clients(self.deps.clients_path)["lin"]
+        status, _ = self.call("POST", "/api/clients", client)
+        self.assertEqual(status, 409)
 
     def test_runs_merge_end_manifest_group_versions_and_flag_differences(self):
         first = self.stored_run("0.1.0", "客户甲", "测试甲")
@@ -178,6 +225,35 @@ class WebTest(unittest.TestCase):
         feedback = self.root / "runs" / "0.1.0" / run_id / "feedback.jsonl"
         self.assertEqual(json.loads(feedback.read_text(encoding="utf-8"))["edited"], True)
 
+    def test_concurrent_feedback_copies_keep_both_messages(self):
+        run_id = self.stored_run("0.1.0", "客户甲", "测试甲")
+        barrier = threading.Barrier(2)
+
+        def copy(text):
+            body = {
+                "run_id": run_id,
+                "case_id": "c1",
+                "client_id": "lin",
+                "candidate": 0,
+                "strategy": "问候",
+                "tone": "亲切温暖",
+                "original_text": "原文",
+                "copied_text": text,
+                "edited": True,
+                "action": "copy",
+                "time": "2026-11-04T10:00:00+08:00",
+            }
+            barrier.wait()
+            self.assertEqual(self.call("POST", "/api/feedback", body)[0], 200)
+
+        threads = [threading.Thread(target=copy, args=(text,)) for text in ("消息甲", "消息乙")]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        history = load_clients(self.deps.clients_path)["lin"]["history"]
+        self.assertEqual({row["text"] for row in history[-2:]}, {"消息甲", "消息乙"})
+
     def test_bad_body_unknown_routes_and_unknown_runs(self):
         self.assertEqual(self.call("POST", "/api/chat", "{bad")[0], 400)
         self.assertEqual(self.call("POST", "/api/chat", [])[0], 400)
@@ -185,12 +261,49 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("GET", "/api/runs/0.1.0/nope/cases/c1")[0], 404)
         self.assertEqual(self.call("GET", "/api/runs/../x/cases/c1")[0], 400)
         self.assertEqual(self.call("PUT", "/api/clients/..", {})[0], 400)
+        self.assertEqual(self.call("GET", "/api/runs/0.1.0/run*/cases/c1")[0], 400)
+
+    def test_write_request_security_headers(self):
+        body = {"request": "请帮林女士重新联系。"}
+        trusted = {
+            "Content-Type": "application/json",
+            "Host": "127.0.0.1:8765",
+            "Origin": "http://localhost:8765",
+        }
+        self.assertEqual(self.call("POST", "/api/chat", body, {**trusted, "Content-Type": "text/plain"})[0], 415)
+        self.assertEqual(self.call("POST", "/api/chat", body, {**trusted, "Origin": "https://evil.example"})[0], 403)
+        self.assertEqual(self.call("POST", "/api/chat", body, {**trusted, "Host": "evil.example"})[0], 403)
+
+    def test_request_body_is_capped_at_one_mib(self):
+        from ca.web import _request_guard
+
+        status, payload = _request_guard(
+            "POST",
+            {"Content-Type": "application/json", "Host": "localhost:8765"},
+            8765,
+            1024 * 1024 + 1,
+        )
+        self.assertEqual(status, 413)
+        self.assertIn("过大", payload["error"])
 
     def test_html_has_six_regions(self):
         status, payload = self.call("GET", "/")
         self.assertEqual(status, 200)
         for region in ("case-form", "chat", "clients", "trace", "batch", "versions"):
             self.assertIn(f'id="{region}"', payload["body"])
+
+    def test_html_builds_dynamic_content_without_inner_html(self):
+        html = (self.root / "web" / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn(".innerHTML", html)
+        self.assertIn("createElement", html)
+        self.assertIn("replaceChildren", html)
+        self.assertIn("textContent", html)
+        self.assertIn(".value", html)
+
+    def test_html_fill_form_normalizes_arrays_and_null(self):
+        html = (self.root / "web" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('Array.isArray(value)?value.join(",")', html)
+        self.assertIn('value==null?"":value', html)
 
     def test_batch_conflict_stop_and_cancelled_case_file(self):
         rows = [self.case(case_id=f"c{i}", split="tuning") for i in range(5)]
@@ -222,6 +335,24 @@ class WebTest(unittest.TestCase):
         run_dir = next((self.root / "runs").glob("*/*"))
         cancelled = json.loads((run_dir / "cases" / "c4.json").read_text(encoding="utf-8"))
         self.assertEqual(cancelled["status"], "cancelled")
+
+    def test_batch_reports_thread_failure_and_marks_unfinished_rows(self):
+        row = self.case(case_id="c1", split="tuning")
+        (self.root / "cases" / "tuning.jsonl").write_text(json.dumps(row, ensure_ascii=False), encoding="utf-8")
+
+        def fail(*args):
+            raise OSError("manifest broke")
+
+        self.deps.run_cases = fail
+        status, _ = self.call("POST", "/api/batch", {"split": "tuning"})
+        self.assertEqual(status, 202)
+        self.assertTrue(self.deps.batch_state.finished.wait(2))
+        status, payload = self.call("GET", "/api/batch")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["error"], "manifest broke")
+        self.assertEqual(payload["rows"], [{"case_id": "c1", "status": "failed"}])
+        manifest = next((self.root / "runs").glob("*/*/manifest.end.json"))
+        self.assertEqual(json.loads(manifest.read_text(encoding="utf-8"))["case_statuses"], {"c1": "failed"})
 
     def stored_run(self, version, client_hash, test_version):
         store = RunStore(self.root / "runs", version)

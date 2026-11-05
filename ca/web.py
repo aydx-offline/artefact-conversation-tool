@@ -26,6 +26,9 @@ from ca.schema import CaseError, load_case, validate_case
 from ca.store import RunStore
 from ca.telemetry import open_telemetry
 
+MAX_BODY_SIZE = 1024 * 1024
+CLIENTS_LOCK = threading.Lock()
+
 
 def _get(deps, name, default=None):
     return deps.get(name, default) if isinstance(deps, dict) else getattr(deps, name, default)
@@ -49,7 +52,28 @@ def _json_body(body):
 
 
 def _safe(value):
-    return bool(value) and value not in (".", "..") and "/" not in value and "\\" not in value
+    return (
+        bool(value)
+        and value not in (".", "..")
+        and not any(char in value for char in "/\\*?[")
+    )
+
+
+def _request_guard(method, headers, port, length=0):
+    if method not in ("POST", "PUT"):
+        return None
+    headers = {name.lower(): value for name, value in headers.items()}
+    if length > MAX_BODY_SIZE:
+        return 413, {"error": "请求正文过大"}
+    if headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+        return 415, {"error": "Content-Type 必须是 application/json"}
+    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    if headers.get("host") not in allowed_hosts:
+        return 403, {"error": "请求来源无效"}
+    origin = headers.get("origin")
+    if origin and origin not in {f"http://{host}" for host in allowed_hosts}:
+        return 403, {"error": "请求来源无效"}
+    return None
 
 
 def _root(deps):
@@ -94,6 +118,7 @@ class BatchState:
         self.running = False
         self.run_id = ""
         self.rows = []
+        self.error = ""
 
     def update(self, case_id, status):
         with self.lock:
@@ -114,10 +139,10 @@ def _batch_state(deps):
 def _run_batch(deps, state, cases, source, model):
     root = _root(deps)
     store = RunStore(root / "runs")
-    clients = load_clients(_clients_path(deps))
-    brand = _get(deps, "brand") or load_brand(root / "data" / "brand")
     try:
-        statuses = run_cases(
+        clients = load_clients(_clients_path(deps))
+        brand = _get(deps, "brand") or load_brand(root / "data" / "brand")
+        statuses = _get(deps, "run_cases", run_cases)(
             cases,
             model,
             brand,
@@ -131,6 +156,17 @@ def _run_batch(deps, state, cases, source, model):
         telemetry = _get(deps, "telemetry")
         if telemetry:
             telemetry.flush()
+    except Exception as error:
+        with state.lock:
+            state.error = str(error)
+            for row in state.rows:
+                if row["status"] not in ("done", "failed", "failed_checks", "cancelled"):
+                    row["status"] = "failed"
+            statuses = {row["case_id"]: row["status"] for row in state.rows}
+        try:
+            _finish(store, state.run_id, statuses)
+        except Exception:
+            pass
     finally:
         with state.lock:
             state.running = False
@@ -170,6 +206,7 @@ def _start_batch(body, deps):
         state.finished.clear()
         state.running = True
         state.run_id = run_id
+        state.error = ""
         state.rows = [{"case_id": case.case_id, "status": "queued"} for case in cases]
     threading.Thread(target=_run_batch, args=(deps, state, cases, source, model), daemon=True).start()
     return 202, {"run_id": run_id, "rows": list(state.rows)}
@@ -262,15 +299,27 @@ def _feedback(body, deps):
     row = {name: body[name] for name in required}
     RunStore(_root(deps) / "runs", run_dir.parent.name).append(body["run_id"], "feedback.jsonl", row)
     if client is not None:
-        client.setdefault("history", []).append(
-            {"sender": "ca", "text": body["copied_text"], "time": body["time"]}
-        )
-        save_client(_clients_path(deps), client)
+        with CLIENTS_LOCK:
+            clients = load_clients(_clients_path(deps))
+            client = clients[body["client_id"]]
+            client.setdefault("history", []).append(
+                {"sender": "ca", "text": body["copied_text"], "time": body["time"]}
+            )
+            save_client(_clients_path(deps), client)
     return 200, {"feedback": row}
 
 
-def handle(method, path, body, deps):
+def handle(method, path, body, deps, headers=None):
     try:
+        if headers is not None:
+            guard = _request_guard(
+                method,
+                headers,
+                _get(deps, "port", 8765),
+                len(body) if isinstance(body, (bytes, bytearray)) else 0,
+            )
+            if guard:
+                return guard
         raw_path = urlsplit(path).path
         if "%2f" in raw_path.lower() or "%5c" in raw_path.lower():
             return 400, {"error": "路径参数无效"}
@@ -288,13 +337,17 @@ def handle(method, path, body, deps):
         if route == "/api/clients" and method == "POST":
             if not _safe(str(body.get("id", ""))):
                 return 400, {"error": "id: 必填或无效"}
-            save_client(_clients_path(deps), body)
+            with CLIENTS_LOCK:
+                if body["id"] in load_clients(_clients_path(deps)):
+                    return 409, {"error": "客户已存在"}
+                save_client(_clients_path(deps), body)
             return 201, {"client": body}
         if route.startswith("/api/clients/") and method == "PUT":
             if len(parts) != 3 or not _safe(parts[2]):
                 return 400, {"error": "id: 路径参数无效"}
             client = {**body, "id": parts[2]}
-            save_client(_clients_path(deps), client)
+            with CLIENTS_LOCK:
+                save_client(_clients_path(deps), client)
             return 200, {"client": client}
 
         if route == "/api/chat" and method == "POST":
@@ -312,6 +365,9 @@ def handle(method, path, body, deps):
             return 200, {"case": case_data}
 
         if route == "/api/generate" and method == "POST":
+            product_ids = body.get("product_ids", [])
+            if not isinstance(product_ids, list) or not all(isinstance(item, str) for item in product_ids):
+                return 400, {"error": "product_ids: 每项必须是字符串"}
             case = load_case(body)
             brand = _get(deps, "brand") or load_brand(_root(deps) / "data" / "brand")
             clients = load_clients(_clients_path(deps))
@@ -368,14 +424,15 @@ def handle(method, path, body, deps):
                     "running": state.running,
                     "run_id": state.run_id,
                     "rows": list(state.rows),
+                    "error": state.error,
                 }
         return 404, {"error": "未找到路由"}
     except json.JSONDecodeError:
         return 400, {"error": "请求正文不是有效 JSON"}
     except (CaseError, TypeError, ValueError, KeyError) as error:
         return 400, {"error": str(error)}
-    except RuntimeError as error:
-        return 503, {"error": str(error)}
+    except Exception:
+        return 500, {"error": "服务器内部错误"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -383,8 +440,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve(self):
         length = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(length) if length else None
-        status, payload = handle(self.command, self.path, body, self.deps)
+        guard = _request_guard(self.command, self.headers, self.server.server_port, length)
+        if guard:
+            status, payload = guard
+        else:
+            body = self.rfile.read(length) if length else None
+            status, payload = handle(
+                self.command,
+                self.path,
+                body,
+                self.deps,
+                headers=self.headers,
+            )
         content_type = payload.get("content_type", "application/json; charset=utf-8")
         data = (
             payload["body"].encode("utf-8")
@@ -425,6 +492,7 @@ def main(argv=None):
         model_error=model_error,
         telemetry=open_telemetry(env),
         batch_state=BatchState(),
+        port=args.port,
     )
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"http://127.0.0.1:{args.port}")
