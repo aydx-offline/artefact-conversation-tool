@@ -30,3 +30,7 @@ The 70 rows use 28 clients. Each used client serves two or three rows; every row
 ## Concerns
 
 The approved `t01` timestamp is five days before the 2026 Spring Festival date, outside the three-day resolver window. That case uses the schema's `occasion` override, `生日和春节`, so its resolved occasion still matches the approved coverage note without changing the table or festival calendar.
+
+## Fix round 1
+
+`523bd64` — 修正客户时间线、商品归属与重复话术，并新增对应回归测试。保留 `t01` 的 `生日和春节` 覆盖，不改批准时间。
