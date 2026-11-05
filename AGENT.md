@@ -35,11 +35,13 @@ A substantial step is a new plan, a design change Ann accepted, or a working sli
 
 `.gitignore`, `tests/test_scaffold.py`, `AGENT.md`, `AGENTS.md`, `.cursor/rules/project.mdc`, `log/LOG.md`, `log/screenshots/README.md`, `cases/cases.csv`, `docs/rubric.md`, `README.md`, and the installed `.cursor/skills/deslop/SKILL.md`.
 
-## Out of scope until a later plan
-
 - brand document
 - message generator
 - filled test cases
+
+## Out of scope until a later plan
+
+None.
 
 ## File map
 

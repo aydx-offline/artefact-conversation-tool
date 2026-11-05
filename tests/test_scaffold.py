@@ -55,9 +55,15 @@ class ScaffoldTest(unittest.TestCase):
             "6 Price objection — discount request",
         ]:
             self.assertIn(rule, text)
-        out_of_scope = text.split("## Out of scope until a later plan", 1)[1]
+        in_scope = text.split("## In scope for the scaffold", 1)[1].split(
+            "## Out of scope until a later plan", 1
+        )[0]
         for item in ["brand document", "message generator", "filled test cases"]:
-            self.assertIn(item, out_of_scope)
+            self.assertIn(item, in_scope)
+        out_of_scope = text.split("## Out of scope until a later plan", 1)[1].split(
+            "## File map", 1
+        )[0]
+        self.assertEqual(out_of_scope.strip(), "None.")
 
     def test_agents_pointer_and_cursor_rule(self):
         self.assertIn("AGENT.md", (ROOT / "AGENTS.md").read_text(encoding="utf-8"))
@@ -95,14 +101,17 @@ class ScaffoldTest(unittest.TestCase):
             header,
             "Case ID,Scenario,Client information,Conversation history,Product information,Output 1,Output 2,Output 3,Generator version",
         )
-        self.assertEqual(
-            len((ROOT / "cases" / "cases.csv").read_text(encoding="utf-8").splitlines()),
-            1,
-        )
         rubric = (ROOT / "docs" / "rubric.md").read_text(encoding="utf-8")
         for heading in ["# Draft rubric", "## Good", "## Not acceptable", "## Unscored until the brand exists"]:
             self.assertIn(heading, rubric)
         self.assertIn("Draft. Do not generate messages until Ann accepts or edits this file.", rubric)
+        for line in [
+            "## Scoring",
+            "A candidate is acceptable",
+            "no 1–5 item is below 3",
+            "Facts, dates, and details come from the input",
+        ]:
+            self.assertIn(line, rubric)
 
     def test_readme_points_at_the_scaffold(self):
         text = (ROOT / "README.md").read_text(encoding="utf-8")
