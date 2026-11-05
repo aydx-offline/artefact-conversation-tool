@@ -136,6 +136,14 @@ class PromptTest(unittest.TestCase):
         self.assertIn("提到围巾", user)
         self.assertIn("不能提折扣", user)
 
+    def test_judge_expectations_string_values(self):
+        _, user = judge_prompt(RESOLVED, CANDIDATES, {"must": "回应太贵", "must_not": "主动提出折扣"})
+        self.assertIn("必须：「回应太贵」", user)
+        self.assertIn("不得：「主动提出折扣」", user)
+        self.assertNotIn("「回」", user)
+        _, user = judge_prompt(RESOLVED, CANDIDATES, {"must": "回应太贵"})
+        self.assertNotIn("不得", user)
+
     def test_passed_brand_voice_is_used(self):
         brand = replace(BRAND, voice="独特声音测试")
         for pair in (

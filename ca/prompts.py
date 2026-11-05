@@ -183,7 +183,8 @@ def judge_prompt(resolved: dict, candidates: list, expectations, brand=None) -> 
         wants = "\n".join(
             f"{label}：{quote_data(e)}"
             for label, key in (("必须", "must"), ("不得", "must_not"))
-            for e in expectations.get(key, [])
+            for e in ([expectations.get(key)] if isinstance(expectations.get(key), str) else expectations.get(key) or [])
+            if e
         )
     else:
         wants = "\n".join(f"- {quote_data(e)}" for e in expectations)

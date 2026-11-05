@@ -35,3 +35,13 @@ Full suite: only the by-design screenshot test fails.
 ### Notes
 - Id and English-key absence is asserted on the user text only. The system text carries the JSON keys, and `id` is a substring of `candidates`.
 - The judge system prompt now also carries the brand voice.
+
+## Fix round 2
+`judge_prompt` treats a string value of `must` or `must_not` as one item, so each gets one quoted line (必须：/不得：). A missing or empty key renders nothing.
+
+### RED
+`python3 -m unittest tests.test_prompts` -> Ran 17 tests, FAILED (failures=1): `test_judge_expectations_string_values`.
+
+### GREEN
+`python3 -m unittest tests.test_prompts -v` -> Ran 17 tests, OK.
+Full suite: Ran 55 tests, only the by-design screenshot test fails.
