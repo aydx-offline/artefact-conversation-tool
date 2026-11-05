@@ -7,8 +7,517 @@
     "address": "您",
     "birthday": "03-15",
     "preferences": "喜欢素色丝绸",
-    "purchases": [{"product_id": "scarf", "date": "2026-03-02"}],
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2026-03-02"
+      }
+    ],
     "last_visit": "2026-03-02",
+    "history": []
+  },
+  "shen": {
+    "id": "shen",
+    "name": "沈女士",
+    "tier": "顶级",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "03-17",
+    "preferences": "偏爱克制剪裁与云纹系列",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2025-02-12"
+      }
+    ],
+    "last_visit": "2025-02-03",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "qiao": {
+    "id": "qiao",
+    "name": "乔女士",
+    "tier": "顶级",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "11-08",
+    "preferences": "喜欢珍珠与月白色调",
+    "purchases": [
+      {
+        "product_id": "dress",
+        "date": "2025-03-12"
+      }
+    ],
+    "last_visit": "2025-03-04",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "luo": {
+    "id": "luo",
+    "name": "罗女士",
+    "tier": "顶级",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "06-02",
+    "preferences": "常选真丝长裙与柔和颜色",
+    "purchases": [
+      {
+        "product_id": "yunwen",
+        "date": "2025-12-21"
+      }
+    ],
+    "last_visit": "2025-04-05",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "gu": {
+    "id": "gu",
+    "name": "顾女士",
+    "tier": "顶级",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "01-21",
+    "preferences": "注重面料手感与日常保养",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2025-05-12"
+      }
+    ],
+    "last_visit": "2025-05-06",
+    "notes": "久未联系，仅作问候",
+    "history": []
+  },
+  "wen": {
+    "id": "wen",
+    "name": "温女士",
+    "tier": "顶级",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "12-09",
+    "preferences": "偏爱简洁外套与安静配色",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2025-06-12"
+      }
+    ],
+    "last_visit": "2025-06-07",
+    "notes": "从旧围巾的保养服务问候",
+    "history": []
+  },
+  "su": {
+    "id": "su",
+    "name": "苏女士",
+    "tier": "顶级",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "11-03",
+    "preferences": "偏爱端庄长裙与正式场合穿着",
+    "purchases": [
+      {
+        "product_id": "dress",
+        "date": "2025-07-12"
+      }
+    ],
+    "last_visit": "2025-07-08",
+    "notes": "从既有围巾轻启话题",
+    "history": []
+  },
+  "han": {
+    "id": "han",
+    "name": "韩女士",
+    "tier": "顶级",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "02-15",
+    "preferences": "重视做工、服务与得体搭配",
+    "purchases": [
+      {
+        "product_id": "dress",
+        "date": "2026-07-10"
+      }
+    ],
+    "last_visit": "2025-08-09",
+    "notes": "不愉快的经历之后重新联系",
+    "history": []
+  },
+  "yu": {
+    "id": "yu",
+    "name": "俞女士",
+    "tier": "顶级",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "05-24",
+    "preferences": "喜欢素缎与低调配饰",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2025-09-12"
+      }
+    ],
+    "last_visit": "2025-01-10",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "cao": {
+    "id": "cao",
+    "name": "曹女士",
+    "tier": "顶级",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "10-06",
+    "preferences": "偏爱利落轮廓与中性色",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2025-01-12"
+      }
+    ],
+    "last_visit": "2025-02-11",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "du": {
+    "id": "du",
+    "name": "杜女士",
+    "tier": "顶级",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "12-18",
+    "preferences": "关注材质来源与长期养护",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2026-01-23"
+      }
+    ],
+    "last_visit": "2025-03-12",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "tang": {
+    "id": "tang",
+    "name": "唐女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "09-24",
+    "preferences": "喜欢围巾，也常问真丝保养",
+    "purchases": [
+      {
+        "product_id": "yunwen",
+        "date": "2026-08-24"
+      }
+    ],
+    "last_visit": "2025-04-13",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "xu": {
+    "id": "xu",
+    "name": "徐女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "04-14",
+    "preferences": "偏爱云纹系列，沟通直接坦率",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2025-04-12"
+      }
+    ],
+    "last_visit": "2025-05-14",
+    "notes": "长期往来后的重新联系",
+    "history": []
+  },
+  "jiang": {
+    "id": "jiang",
+    "name": "蒋女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "01-08",
+    "preferences": "喜欢轻盈配饰与自然光泽",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2026-07-12"
+      }
+    ],
+    "last_visit": "2025-06-15",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "pan": {
+    "id": "pan",
+    "name": "潘女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "07-23",
+    "preferences": "常穿真丝单品，重视舒适",
+    "purchases": [
+      {
+        "product_id": "dress",
+        "date": "2025-06-12"
+      }
+    ],
+    "last_visit": "2025-07-16",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "lai": {
+    "id": "lai",
+    "name": "赖女士",
+    "tier": "常客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "12-02",
+    "preferences": "喜欢柔和色彩与简洁搭配",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2026-02-24"
+      }
+    ],
+    "last_visit": "2025-08-17",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "xie": {
+    "id": "xie",
+    "name": "谢女士",
+    "tier": "常客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "01-27",
+    "preferences": "偏爱正式剪裁与稳重色调",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2025-08-12"
+      }
+    ],
+    "last_visit": "2025-01-18",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "ma": {
+    "id": "ma",
+    "name": "马女士",
+    "tier": "常客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "07-06",
+    "preferences": "通勤时常用丝巾，讲究实用",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2025-09-12"
+      }
+    ],
+    "last_visit": "2025-02-19",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "zeng": {
+    "id": "zeng",
+    "name": "曾女士",
+    "tier": "常客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "11-26",
+    "preferences": "喜欢经典款式与细致服务",
+    "purchases": [
+      {
+        "product_id": "dress",
+        "date": "2026-03-25"
+      }
+    ],
+    "last_visit": "2025-03-20",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "kong": {
+    "id": "kong",
+    "name": "孔女士",
+    "tier": "常客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "06-11",
+    "preferences": "关注衣物收纳与耐久穿着",
+    "purchases": [
+      {
+        "product_id": "yunwen",
+        "date": "2025-02-12"
+      }
+    ],
+    "last_visit": "2025-04-21",
+    "notes": "久未到店后的简短问候",
+    "history": []
+  },
+  "jin": {
+    "id": "jin",
+    "name": "金女士",
+    "tier": "常客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "10-19",
+    "preferences": "偏爱含蓄设计与素净颜色",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2025-03-12"
+      }
+    ],
+    "last_visit": "2025-05-02",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "he": {
+    "id": "he",
+    "name": "何女士",
+    "tier": "新客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "05-14",
+    "preferences": "初次了解真丝，偏爱简洁款式",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2025-04-12"
+      }
+    ],
+    "last_visit": "2025-06-03",
+    "notes": "新客沉默后的克制问候",
+    "history": []
+  },
+  "fang": {
+    "id": "fang",
+    "name": "方女士",
+    "tier": "新客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "07-13",
+    "preferences": "喜欢月白色调与轻巧配饰",
+    "purchases": [
+      {
+        "product_id": "yunwen",
+        "date": "2026-07-14"
+      }
+    ],
+    "last_visit": "2025-07-04",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "rao": {
+    "id": "rao",
+    "name": "饶女士",
+    "tier": "新客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "12-21",
+    "preferences": "关注场合搭配与面料护理",
+    "purchases": [
+      {
+        "product_id": "yunwen",
+        "date": "2025-06-12"
+      }
+    ],
+    "last_visit": "2025-08-05",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "shi": {
+    "id": "shi",
+    "name": "施女士",
+    "tier": "新客",
+    "relationship": "正式",
+    "address": "您",
+    "birthday": "01-16",
+    "preferences": "偏爱低调配色，沟通较为谨慎",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2026-04-26"
+      }
+    ],
+    "last_visit": "2025-01-06",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "wei": {
+    "id": "wei",
+    "name": "魏女士",
+    "tier": "新客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "02-28",
+    "preferences": "试穿时喜欢轻盈柔软的触感",
+    "purchases": [
+      {
+        "product_id": "pearl",
+        "date": "2025-08-12"
+      }
+    ],
+    "last_visit": "2025-02-07",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "meng": {
+    "id": "meng",
+    "name": "孟女士",
+    "tier": "新客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "11-14",
+    "preferences": "喜欢珍珠与柔和的日常搭配",
+    "purchases": [
+      {
+        "product_id": "dress",
+        "date": "2025-09-12"
+      }
+    ],
+    "last_visit": "2025-03-08",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "niu": {
+    "id": "niu",
+    "name": "牛女士",
+    "tier": "新客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "06-27",
+    "preferences": "偏爱长裙，重视活动舒适度",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2026-05-24"
+      }
+    ],
+    "last_visit": "2025-04-09",
+    "notes": "喜欢顾问说得简短具体，不喜欢催促",
+    "history": []
+  },
+  "bi": {
+    "id": "bi",
+    "name": "毕女士",
+    "tier": "新客",
+    "relationship": "熟",
+    "address": "您",
+    "birthday": "10-12",
+    "preferences": "喜欢围巾和自然、不拘谨的搭配",
+    "purchases": [
+      {
+        "product_id": "scarf",
+        "date": "2025-02-12"
+      }
+    ],
+    "last_visit": "2025-05-10",
+    "notes": "从上次看过的耳钉重新联系",
     "history": []
   }
 }

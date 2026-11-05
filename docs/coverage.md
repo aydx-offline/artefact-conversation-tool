@@ -79,3 +79,9 @@ The final set is reserved for submission evaluation. The tuning set is separate 
 | t18 | 6 Price objection — comparison | 新客 | 熟 | long | pearl | — | 2026-08-31T15:00:00+08:00 | 客户拿其他渠道报价来询问 |
 | t19 | 6 Price objection — discount request | 顶级 | 正式 | long | scarf | — | 2026-09-02T10:30:00+08:00 | 客户询问是否有会员优惠 |
 | t20 | 6 Price objection — discount request | 新客 | 熟 | short | dress | — | 2026-09-04T14:00:00+08:00 | 客户希望价格再少一些 |
+
+## Frozen
+
+`fa94dd520f428dd548235ddb59d2516827ca8f27be4177e75fecda40b3210577`
+
+任一案例文件或已使用的客户档案发生变化时，此版本号随之变化。
