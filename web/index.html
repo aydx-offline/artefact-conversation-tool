@@ -63,6 +63,7 @@
     <h2>批次 / Batch</h2>
     <select><option value="tuning">20 个调优案例</option><option value="final">50 个最终案例</option></select>
     <button data-action="run">运行</button><button data-action="stop">停止</button>
+    <p class="error flag"></p>
     <div class="rows"></div>
   </section>
 
@@ -107,7 +108,7 @@ async function loadClients(){const data=await api("/api/clients"); clientData=da
 function showClient(){const id=$("#clients select").value; $("#clients textarea").value=JSON.stringify(clientData[id]||{},null,2)}
 $("#clients select").onchange=showClient; $("#clients button").onclick=async()=>{const c=JSON.parse($("#clients textarea").value); await api(`/api/clients/${encodeURIComponent(c.id)}`,{method:"PUT",body:c}); await loadClients()};
 $("#trace button").onclick=async()=>{const values=$$("#trace input").map(x=>encodeURIComponent(x.value)); try{$("#trace pre").textContent=JSON.stringify(await api(`/api/runs/${values[0]}/${values[1]}/cases/${values[2]}`),null,2)}catch(error){$("#trace pre").textContent=error.message}};
-async function batchRows(){const data=await api("/api/batch"); $("#batch .rows").replaceChildren(...data.rows.map(r=>node("div",`${r.case_id}：${r.status}`,"row"))); if(data.running)setTimeout(batchRows,700)}
+async function batchRows(){const data=await api("/api/batch"); $("#batch .error").textContent=data.error||""; $("#batch .rows").replaceChildren(...data.rows.map(r=>node("div",`${r.case_id}：${r.status}`,"row"))); if(data.running)setTimeout(batchRows,700)}
 $("#batch [data-action=run]").onclick=async()=>{try{await api("/api/batch",{method:"POST",body:{split:$("#batch select").value}}); batchRows()}catch(error){alert(error.message)}};
 $("#batch [data-action=stop]").onclick=()=>api("/api/batch/stop",{method:"POST",body:{}}).catch(error=>alert(error.message));
 let versionRuns=[];

@@ -1,3 +1,4 @@
+import io
 import json
 import shutil
 import tempfile
@@ -173,6 +174,26 @@ class WebTest(unittest.TestCase):
         self.assertNotIn("api-key-secret", payload["error"])
         self.assertNotIn("Traceback", payload["error"])
 
+    def test_model_lookup_runtime_error_returns_503_for_chat_and_generate(self):
+        class RaisingDeps(dict):
+            def get(self, name, default=None):
+                if name == "model":
+                    raise RuntimeError("缺少 GLM 配置: api-key-secret")
+                return super().get(name, default)
+
+        deps = RaisingDeps(vars(self.deps))
+        for path, body in (
+            ("/api/chat", {"request": "请帮林女士重新联系。"}),
+            ("/api/generate", self.case()),
+        ):
+            with self.subTest(path=path):
+                from ca.web import handle
+
+                status, payload = handle("POST", path, body, deps)
+                self.assertEqual(status, 503)
+                self.assertIn("缺少 GLM 配置", payload["error"])
+                self.assertNotIn("key", payload["error"].lower())
+
     def test_client_routes_include_put(self):
         status, payload = self.call("GET", "/api/clients")
         self.assertEqual(status, 200)
@@ -274,6 +295,14 @@ class WebTest(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/chat", body, {**trusted, "Origin": "https://evil.example"})[0], 403)
         self.assertEqual(self.call("POST", "/api/chat", body, {**trusted, "Host": "evil.example"})[0], 403)
 
+    def test_get_requires_local_host_through_guard_and_handle(self):
+        from ca.web import _request_guard
+
+        self.assertEqual(_request_guard("GET", {"Host": "evil.example"}, 8765)[0], 403)
+        self.assertIsNone(_request_guard("GET", {"Host": "localhost:8765"}, 8765))
+        self.assertEqual(self.call("GET", "/", headers={"Host": "evil.example"})[0], 403)
+        self.assertEqual(self.call("GET", "/", headers={"Host": "127.0.0.1:8765"})[0], 200)
+
     def test_request_body_is_capped_at_one_mib(self):
         from ca.web import _request_guard
 
@@ -285,6 +314,34 @@ class WebTest(unittest.TestCase):
         )
         self.assertEqual(status, 413)
         self.assertIn("过大", payload["error"])
+
+    def test_live_handler_rejects_invalid_lengths_and_closes_oversize_connection(self):
+        from ca.web import Handler, MAX_BODY_SIZE
+
+        def serve(length):
+            handler = Handler.__new__(Handler)
+            handler.command = "POST"
+            handler.path = "/api/chat"
+            handler.headers = {
+                "Content-Length": length,
+                "Content-Type": "application/json",
+                "Host": "localhost:8765",
+            }
+            handler.server = SimpleNamespace(server_port=8765)
+            handler.rfile = io.BytesIO(b'{"request":"x"}')
+            handler.wfile = io.BytesIO()
+            handler.deps = self.deps
+            handler.send_response = lambda status: setattr(handler, "status", status)
+            handler.send_header = lambda *args: None
+            handler.end_headers = lambda: None
+            handler._serve()
+            return handler
+
+        self.assertEqual(serve("nope").status, 400)
+        self.assertEqual(serve("-1").status, 400)
+        oversized = serve(str(MAX_BODY_SIZE + 1))
+        self.assertEqual(oversized.status, 413)
+        self.assertTrue(oversized.close_connection)
 
     def test_html_has_six_regions(self):
         status, payload = self.call("GET", "/")
@@ -304,6 +361,10 @@ class WebTest(unittest.TestCase):
         html = (self.root / "web" / "index.html").read_text(encoding="utf-8")
         self.assertIn('Array.isArray(value)?value.join(",")', html)
         self.assertIn('value==null?"":value', html)
+
+    def test_html_batch_view_displays_server_error_with_text_content(self):
+        html = (self.root / "web" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('$("#batch .error").textContent=data.error||""', html)
 
     def test_batch_conflict_stop_and_cancelled_case_file(self):
         rows = [self.case(case_id=f"c{i}", split="tuning") for i in range(5)]

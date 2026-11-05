@@ -60,16 +60,22 @@ def _safe(value):
 
 
 def _request_guard(method, headers, port, length=0):
+    headers = {name.lower(): value for name, value in headers.items()}
+    try:
+        length = int(headers.get("content-length", length))
+    except (TypeError, ValueError):
+        return 400, {"error": "Content-Length 必须是非负整数"}
+    if length < 0:
+        return 400, {"error": "Content-Length 必须是非负整数"}
+    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    if headers.get("host") not in allowed_hosts:
+        return 403, {"error": "请求来源无效"}
     if method not in ("POST", "PUT"):
         return None
-    headers = {name.lower(): value for name, value in headers.items()}
     if length > MAX_BODY_SIZE:
         return 413, {"error": "请求正文过大"}
     if headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
         return 415, {"error": "Content-Type 必须是 application/json"}
-    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
-    if headers.get("host") not in allowed_hosts:
-        return 403, {"error": "请求来源无效"}
     origin = headers.get("origin")
     if origin and origin not in {f"http://{host}" for host in allowed_hosts}:
         return 403, {"error": "请求来源无效"}
@@ -431,6 +437,11 @@ def handle(method, path, body, deps, headers=None):
         return 400, {"error": "请求正文不是有效 JSON"}
     except (CaseError, TypeError, ValueError, KeyError) as error:
         return 400, {"error": str(error)}
+    except RuntimeError as error:
+        message = str(error)
+        if any(word in message.lower() for word in ("key", "secret", "token")):
+            message = message.split(":", 1)[0].strip() or "模型配置不可用"
+        return 503, {"error": message}
     except Exception:
         return 500, {"error": "服务器内部错误"}
 
@@ -439,11 +450,12 @@ class Handler(BaseHTTPRequestHandler):
     deps = None
 
     def _serve(self):
-        length = int(self.headers.get("Content-Length", "0"))
+        length = self.headers.get("Content-Length", "0")
         guard = _request_guard(self.command, self.headers, self.server.server_port, length)
         if guard:
             status, payload = guard
         else:
+            length = int(length)
             body = self.rfile.read(length) if length else None
             status, payload = handle(
                 self.command,
@@ -461,6 +473,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        if status == 413:
+            self.close_connection = True
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(data)
 
