@@ -84,14 +84,18 @@ A local web page was built and its API tested against a running server: page loa
 | Lost | Confirm-before-generate, typing a request in natural language, a visual trace and version view, and logging which message a CA copies. |
 | Design | The spec, the architecture diagrams, and the Docker image now describe a command-line tool. The few-shot feedback loop in `docs/future-implementation.md` has no source of picks until a front end returns. |
 
-## What remains to be tuned
+## Known defects in the submitted version
 
-1. **Invented details.** Newness is now a code check, but a guessed colour or a made-up weaving method still gets through (f33, f36). The prompt is frozen, so the next step is data: for each product, list what is known and say that nothing else is.
-2. **A wrong span or date** (f03, f50 in 0.1.13). Candidates: a fact-check call per case, or a festival-day note computed in code like the birthday note.
-3. **A reply that skips what was just said** (f07, and t06 to t08 in tuning).
-4. **Revise leaves a repeated strategy** (f47, f48). Pick the replacement from the menu items not used, in code.
-5. **Judge reliability.** No person has scored a sample against the judge. Each version was run once.
-6. **Housekeeping.** 57 of 70 cases have empty expectations. Langfuse traces are ended in the code but this was not checked in the Langfuse screen. 13 work-log rows still need screenshots.
+The team stopped fixing at generator 0.1.14. These are in the 50 submitted results, and `docs/evaluation-report.md` shows each one.
+
+1. **Invented details.** A guessed colour or a made-up weaving method still gets through (f33, f36). Newness is a code check now, but nothing checks every other claim. The next step is data: for each product, list what is known and say that nothing else is.
+2. **A wrong date or span.** f03 says a birthday and 中秋 are two days apart when it is one. A fact-check call, or a festival-day note computed in code like the birthday note, would catch it.
+3. **A reply that skips what was just said.** f07 handles the complaint and leaves out the birthday in two of three messages, and f45 does not explain how the shop's service differs.
+4. **Revise leaves a repeated or off-menu strategy** (f02, f47, f48). The spec allows one revise. The replacement could be picked from unused menu items in code.
+5. **Free care outside its rule** (f27, f37), and a message longer than the case asked (f29).
+6. **A generic message** (f02).
+7. **The judge is a model that was never checked against people,** and it is not always consistent (the 「提花」 case in the evaluation report). Each version was run once.
+8. **Housekeeping.** 57 of 70 cases have empty expectations. Langfuse traces are ended in the code but this was not checked in the Langfuse screen. 14 work-log rows still need screenshots.
 
 ## Future implementation
 

@@ -1,6 +1,6 @@
 # Architecture
 
-This is the bonus architecture diagram. The tool is one fixed pipeline run from the command line, a run store that never overwrites, and a separate scoring step.
+The tool is one fixed pipeline run from the command line, a run store that never overwrites, and a separate scoring step.
 
 ## Generating three messages
 
