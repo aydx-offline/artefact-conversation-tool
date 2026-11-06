@@ -57,7 +57,11 @@ def _client_lines(client, catalog):
         _field("生日", client["birthday"]),
         _field("喜好", client["preferences"]),
     ]
-    bought = [f"{names[p['product_id']]}（{p['date']}）" for p in client.get("purchases", []) if p["product_id"] in names]
+    bought = [
+        f"{names[p['product_id']]}（{'，'.join(filter(None, [p['date'], p.get('color')]))}）"
+        for p in client.get("purchases", [])
+        if p["product_id"] in names
+    ]
     if bought:
         lines.append(_field("购买记录", "、".join(bought)))
     if client.get("last_visit"):
@@ -72,11 +76,13 @@ def _product_lines(product):
         _field("价格", f"{product['price']}元"),
         _field("材质", product["materials"]),
         _field("保养", product["care"]),
-    ]
+    ] + [_field(label, product[key]) for label, key in (("颜色", "colors"), ("款式", "fit"), ("适合", "wear")) if product.get(key)]
 
 
 def _event_lines(event):
     lines = [_field("活动", event["name"]), _field("活动日期", event["date"])]
+    if event.get("content"):
+        lines.append(_field("活动内容", event["content"]))
     if event.get("place"):
         lines.append(_field("活动地点", event["place"]))
     if event.get("capacity") is not None:
@@ -85,6 +91,16 @@ def _event_lines(event):
 
 
 SEASONS = ("冬季", "春季", "夏季", "秋季")
+YEARS = ("", "一", "两", "三", "四", "五", "六", "七", "八", "九")
+
+
+def _span(months: int) -> str:
+    if months < 1:
+        return "不到一个月"
+    if months < 12:
+        return f"{months}个月"
+    years, rest = divmod(months, 12)
+    return f"{YEARS[min(years, 9)]}年{'多' if rest else ''}"
 
 
 def _case_body(resolved: dict, brand) -> str:
@@ -111,9 +127,17 @@ def _case_body(resolved: dict, brand) -> str:
     if resolved.get("occasion"):
         day_parts.append(f"节日或生日：{quote_data(resolved['occasion'])}")
     if resolved.get("days_since_purchase") is not None:
-        day_parts.append(f"距上次购买{resolved['days_since_purchase']}天")
+        days = resolved["days_since_purchase"]
+        day_parts.append(f"距上次购买{days}天（{_span(days * 12 // 365)}）")
     if resolved.get("months_since_visit") is not None:
-        day_parts.append(f"距上次到店{resolved['months_since_visit']}个月")
+        months = resolved["months_since_visit"]
+        day_parts.append(f"距上次到店{months}个月（{_span(months)}）")
+    if resolved.get("next_festival"):
+        name, days = resolved["next_festival"]
+        day_parts.append(f"下一个节日：{name}，{'就是今天' if days == 0 else f'还有{days}天'}")
+    if resolved.get("last_festival"):
+        name, days = resolved["last_festival"]
+        day_parts.append(f"上一个节日：{name}，{days}天前")
     if day_parts:
         lines.append("日子：" + "；".join(day_parts))
     return "\n".join(lines)
@@ -129,13 +153,14 @@ def _preference_line(resolved: dict) -> str:
 
 
 def _house(brand) -> str:
-    return "你是奢侈品牌澄白（Chengbai）的客户顾问助手，用中文为微信写给客户的消息。\n" + brand.voice
+    return "你是奢侈品牌澄白的客户顾问助手，用中文为微信写给客户的消息。\n" + brand.voice
 
 
 def _voice_line() -> str:
     return (
-        "写成中文母语者在微信里平时会写的话。可以带语气词、波浪号，或一两个表情。"
-        "先接住她，再自然说到这件事，不要端着介绍。不要叫宝贝，不要催，不要提折扣、样品或限时。\n"
+        "写成中文母语者在微信里平时会写的话。可以带语气词，或一两个表情。"
+        "如果对话里有她的话，先回应她最后说的话，不要再问她已经答过的事。先接住她，再自然说到这件事，不要端着介绍。"
+        "说到我们的东西时，不要直接说不追时尚、不追潮流、不声张，要婉转地说，比如上身很有气质、内敛大方，参照品牌声音里的说法和对照。不要叫宝贝，不要催，不要提折扣或限时。可以说不降价，但可以送一份心意，比如免费护理、小礼物，或一次体验、试用。\n"
         "称呼：正式多用您。熟络没有固定称呼，您、你、亲、亲爱的，或直接叫名字，怎么自然怎么写。\n"
     )
 
@@ -148,7 +173,7 @@ def draft_prompt(resolved: dict, menu: list, brand=None) -> tuple[str, str]:
         "日子以上面写的为准。不要写档案里没有的产品细节，不要说她买过她没买过的东西。\n"
         f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
         f"{_voice_line()}"
-        '只输出如下格式：{"candidates":[{"strategy":"菜单原文","reason":"选它的理由","tone":"","length":"","text":""}]}'
+        '只输出如下格式：{"候选":[{"策略":"菜单原文","理由":"选它的理由","语气":"","长度":"","正文":""}]}'
     )
     user = f"{_case_body(resolved, brand)}\n策略菜单：\n" + "\n".join(f"- {item}" for item in menu)
     preference = _preference_line(resolved)
@@ -160,7 +185,7 @@ def plan_prompt(resolved: dict, menu: list, brand=None) -> tuple[str, str]:
     system = (
         f"{_house(brand)}\n{DATA_NOTE}\n"
         "任务：从策略菜单里选出三个互不相同的策略，策略必须逐字照抄菜单原文。\n"
-        '只输出如下格式：{"picks":[{"strategy":"菜单原文","reason":"选它的理由"}]}'
+        '只输出如下格式：{"选择":[{"策略":"菜单原文","理由":"选它的理由"}]}'
     )
     user = f"{_case_body(resolved, brand)}\n策略菜单：\n" + "\n".join(f"- {s}" for s in menu)
     return system, user
@@ -173,7 +198,7 @@ def write_prompt(resolved: dict, plan: dict, brand=None) -> tuple[str, str]:
         "任务：按给定的三个策略，各写一条微信消息，共三条。\n"
         f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
         f"{_voice_line()}"
-        '只输出如下格式：{"candidates":[{"strategy":"","reason":"","tone":"","length":"","text":""}]}'
+        '只输出如下格式：{"候选":[{"策略":"","理由":"","语气":"","长度":"","正文":""}]}'
     )
     picks = "\n".join(f"- 策略：{p['strategy']}；理由：{p['reason']}" for p in plan["picks"])
     preference = _preference_line(resolved)
@@ -188,12 +213,30 @@ def _candidate_lines(candidates: list) -> str:
     )
 
 
+def revise_prompt(resolved: dict, candidates: list, failures: dict, menu: list, brand=None) -> tuple[str, str]:
+    brand = brand or _default_brand()
+    system = (
+        f"{_house(brand)}\n{DATA_NOTE}\n"
+        "任务：下面三条消息里有几条没通过检查。只重写有问题的那几条，改掉列出的问题，序号保持原样，策略和其他消息互不相同。策略必须逐字照抄菜单原文。\n"
+        f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
+        f"{_voice_line()}"
+        '只输出如下格式，只含重写的序号：{"候选":[{"序号":' + str(min(failures)) + ',"策略":"","理由":"","语气":"","长度":"","正文":""}]}'
+    )
+    problems = "\n".join(f"{i}. " + "；".join(items) for i, items in sorted(failures.items()))
+    user = (
+        f"{_case_body(resolved, brand)}\n策略菜单：\n" + "\n".join(f"- {item}" for item in menu)
+        + f"\n三条消息：\n{_candidate_lines(candidates)}\n要改的序号和问题：\n{problems}"
+    )
+    preference = _preference_line(resolved)
+    return system, f"{user}\n{preference}" if preference else user
+
+
 def chat_prompt(request: str) -> tuple[str, str]:
     system = (
-        f"你是奢侈品牌澄白（Chengbai）的客户顾问助手。{DATA_NOTE}\n"
+        f"你是奢侈品牌澄白的客户顾问助手。{DATA_NOTE}\n"
         "任务：从顾问的话里提取客户姓名、场景和客户说的话。不要编造客户。\n"
         "场景只能选以下八个之一：\n" + "\n".join(f"- {zh}" for zh in SCENARIO_ZH.values()) + "\n"
-        '只输出如下格式：{"client_name":"","scenario":"","client_message":""}'
+        '只输出如下格式：{"客户姓名":"","场景":"","客户的话":""}'
     )
     return system, f"顾问的话：{quote_data(request)}"
 
@@ -201,13 +244,13 @@ def chat_prompt(request: str) -> tuple[str, str]:
 def judge_prompt(resolved: dict, candidates: list, expectations, brand=None) -> tuple[str, str]:
     brand = brand or _default_brand()
     system = (
-        f"你是奢侈品牌澄白（Chengbai）微信消息的评审。{DATA_NOTE}\n品牌声音：{brand.voice}\n"
-        f"对每条消息逐项评分。通过或不通过的项：{'、'.join(JUDGE_FACT_ITEMS)}（value 填 1 或 0）。\n"
-        f"一至五分的项：{'、'.join(JUDGE_SCORE_ITEMS)}。\n"
+        f"你是奢侈品牌澄白微信消息的评审。{DATA_NOTE}\n品牌声音：{brand.voice}\n"
+        f"对每条消息逐项评分。通过或不通过的项：{'、'.join(JUDGE_FACT_ITEMS)}（分数填 1 或 0）。\n"
+        f"一至五分的项：{'、'.join(JUDGE_SCORE_ITEMS)}。每条消息八项都要评，三条共二十四行，一行都不能少。\n"
         "各项打分都要更加严格，尤其是中文。拿不准就往低了打。\n"
         "称呼：不必照抄档案里的那一个词。正式用您可以高分。熟络没有固定称呼，您、你、亲、亲爱的，或直接叫名字，只要自然就给高分，不要因为没用某一个词而扣分。\n"
-        "中文：必须像完完全全的中文母语者在微信里写的。翻译腔、公文腔、每句一个架子，都要低分。波浪号和少量表情可以，不要因此扣分。\n"
-        '只输出如下格式：{"scores":[{"candidate":0,"item":"","value":0,"reason":""}]}'
+        "中文：必须像完完全全的中文母语者在微信里写的。翻译腔、公文腔、每句一个架子，都要低分。少量表情可以。\n"
+        '只输出如下格式：{"评分":[{"序号":0,"项目":"","分数":0,"理由":""}]}'
     )
     if isinstance(expectations, dict):
         wants = "\n".join(
@@ -243,17 +286,19 @@ def managed_prompts(brand=None) -> list[dict]:
     candidates = [{"strategy": menu[0], "reason": "合她的情况", "tone": "亲切温暖", "length": "简短", "text": "你好"}]
     systems = {
         "ca/draft": draft_prompt(resolved, menu, brand)[0],
+        "ca/revise": revise_prompt(resolved, candidates, {0: ["太长了"]}, menu, brand)[0],
         "ca/judge": judge_prompt(resolved, candidates, [], brand)[0],
         "ca/chat": chat_prompt("你好")[0],
     }
     users = {
         "ca/draft": "{{case}}\n策略菜单：\n{{menu}}\n{{preference}}",
+        "ca/revise": "{{case}}\n策略菜单：\n{{menu}}\n三条消息：\n{{messages}}\n要改的序号和问题：\n{{problems}}\n{{preference}}",
         "ca/judge": "{{case}}\n期望：\n{{expectations}}\n待评消息：\n{{messages}}",
         "ca/chat": "顾问的话：{{request}}",
     }
     return [
         {"name": name, "prompt": [{"role": "system", "content": systems[name]}, {"role": "user", "content": users[name]}]}
-        for name in ("ca/draft", "ca/judge", "ca/chat")
+        for name in ("ca/draft", "ca/revise", "ca/judge", "ca/chat")
     ]
 
 

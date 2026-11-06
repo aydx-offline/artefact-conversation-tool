@@ -3,7 +3,7 @@ from ca.version import GENERATOR_VERSION
 from ca.prompts import managed_prompts
 
 DATASETS = {"tuning", "final"}
-MODEL_STEPS = {"plan", "write"}
+MODEL_STEPS = {"plan", "write", "revise"}
 _off_printed = False
 
 

@@ -35,6 +35,14 @@ class ClientsTest(unittest.TestCase):
         self.assertEqual(lin["address"], "您")
         self.assertEqual(lin["history"], [])
 
+    def test_every_purchase_has_a_catalog_colour(self):
+        from ca.brand import load_brand
+
+        colours = {p["id"]: p["colors"] for p in load_brand(FIXTURE.parent / "brand").catalog}
+        for client in load_clients(FIXTURE).values():
+            for purchase in client["purchases"]:
+                self.assertIn(purchase["color"], colours[purchase["product_id"]], client["name"])
+
     def test_english_preferences_rejected(self):
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
         data["lin"]["preferences"] = "hello"

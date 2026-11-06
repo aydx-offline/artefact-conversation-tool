@@ -119,7 +119,7 @@ Each scenario has five strategies. The model picks three. The brand draft owns t
 | 6 Comparison | Official channel, authenticity, and warranty · Service only the boutique gives · Offer to check the details of the other offer, without criticising the seller · Compare in person at the boutique · The house's consistent pricing |
 | 6 Discount request | A polite no that keeps the client close · A gesture the brand allows · Move to an occasion or a fitting · Consistent pricing as respect for every client · Priority access to the next collection |
 
-Tone labels: 亲切温暖, 得体典雅, 真诚走心, 简洁轻松, 专业克制, 含蓄低调. Length: 简短 up to 50 characters, 适中 51–130 characters. No message is longer than 150 characters. The numbers live in the brand rules.
+Tone labels: 亲切温暖, 得体典雅, 真诚走心, 简洁轻松, 专业克制, 含蓄低调. Length: 简短 up to 50 characters, 适中 51–130 characters. No message is longer than 180 characters. The numbers live in the brand rules.
 
 ## Architecture
 
@@ -171,11 +171,12 @@ Each step becomes a trace entry with name, start and end time, status, input sum
 4. **Plan** (model call): three different strategies from the menu, with a one-line reason for each. Code checks that all three are on the menu and different. If not, the plan is retried once.
 5. **Write** (model call): JSON with three `{strategy, reason, tone, length, text}` candidates.
 6. **Check:** the code checks below.
-7. **Final:** three candidates and their check results.
+7. **Revise** (only if a check failed): rewrites the failing messages once.
+8. **Final:** three candidates and their check results.
 
-A case makes one writer call, with one retry when the reply is not three menu strategies. There is no revise call: in tuning round 2 every revise was triggered by a false check, and it caused every timeout. Scoring is a separate judge call per case in `evaluate`.
+A case makes one writer call, with one retry when the reply is not three menu strategies. If a code check still fails, one revise call rewrites only the failing messages, with each problem named in Chinese. If revise errors, the drafts are kept as `failed_checks`. Scoring is a separate judge call per case in `evaluate`.
 
-Case statuses: `queued`, `running`, `done`, `failed_checks` (a check failed; candidates kept for inspection), `failed` (model or system error), `cancelled`.
+Case statuses: `queued`, `running`, `done`, `failed_checks` (a check still fails after revise; candidates kept for inspection), `failed` (model or system error), `cancelled`.
 
 Client text, history, and product text are passed to the model as quoted data, never as instructions.
 
@@ -230,7 +231,7 @@ The log entry records the run ID, case ID, candidate number, strategy, tone, ori
 
 - Exactly three non-empty candidates.
 - At least 90% Chinese characters after the brand's allowed English names are removed.
-- Length within the candidate's length label and the 150-character maximum.
+- Length within the 180-character maximum. The 简短 and 适中 labels guide the writer but are not checked.
 - The three strategies are different and on the menu, and no two candidates share more than 75% of their character bigrams.
 - No forbidden phrase from the brand rules, such as urgency or false scarcity.
 - No discount offer unless the brand's policy allows it. The rules list offer patterns: amounts, percentages, 折 numbers, and offer phrasing such as 给您优惠. A refusal that mentions 折扣 passes.

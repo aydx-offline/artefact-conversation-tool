@@ -1,4 +1,4 @@
 {
-  "winter": {"name": "冬日私览", "date": "2026-11-20", "place": "上海澄白店", "capacity": 10},
-  "spring": {"name": "春日沙龙", "date": "2027-03-12", "capacity": null}
+  "winter": {"name": "冬日私览", "date": "2026-11-20", "place": "上海澄白店", "capacity": 10, "content": "看今冬的云纹大衣，可以现场试穿，备有茶点"},
+  "spring": {"name": "春日沙龙", "date": "2027-03-12", "capacity": null, "content": "聊真丝怎么穿、怎么保养，现场有月白长裙和素缎围巾可以试"}
 }

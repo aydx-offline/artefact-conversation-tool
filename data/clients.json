@@ -10,7 +10,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2026-03-02"
+        "date": "2026-03-02",
+        "color": "米白"
       }
     ],
     "last_visit": "2026-03-02",
@@ -27,7 +28,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2025-02-12"
+        "date": "2025-02-12",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2025-02-12",
@@ -45,7 +47,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-03-12"
+        "date": "2025-03-12",
+        "color": "月白"
       }
     ],
     "last_visit": "2025-03-12",
@@ -63,7 +66,8 @@
     "purchases": [
       {
         "product_id": "yunwen",
-        "date": "2025-12-21"
+        "date": "2025-12-21",
+        "color": "烟灰"
       }
     ],
     "last_visit": "2025-12-21",
@@ -81,7 +85,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2025-05-12"
+        "date": "2025-05-12",
+        "color": "浅灰"
       }
     ],
     "last_visit": "2025-05-12",
@@ -99,11 +104,13 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2025-06-12"
+        "date": "2025-06-12",
+        "color": "珍珠白"
       },
       {
         "product_id": "scarf",
-        "date": "2025-05-10"
+        "date": "2025-05-10",
+        "color": "米白"
       }
     ],
     "last_visit": "2025-06-12",
@@ -121,11 +128,13 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-07-12"
+        "date": "2025-07-12",
+        "color": "月白"
       },
       {
         "product_id": "scarf",
-        "date": "2025-10-12"
+        "date": "2025-10-12",
+        "color": "雾粉"
       }
     ],
     "last_visit": "2025-10-12",
@@ -143,7 +152,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-05-18"
+        "date": "2025-05-18",
+        "color": "月白"
       }
     ],
     "last_visit": "2025-05-18",
@@ -161,7 +171,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2025-09-12"
+        "date": "2025-09-12",
+        "color": "浅灰"
       }
     ],
     "last_visit": "2025-09-12",
@@ -179,7 +190,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2025-01-12"
+        "date": "2025-01-12",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2025-02-11",
@@ -197,7 +209,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2026-01-23"
+        "date": "2026-01-23",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2026-01-23",
@@ -215,7 +228,8 @@
     "purchases": [
       {
         "product_id": "yunwen",
-        "date": "2026-02-24"
+        "date": "2026-02-24",
+        "color": "墨蓝"
       }
     ],
     "last_visit": "2026-02-24",
@@ -233,7 +247,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2025-04-12"
+        "date": "2025-04-12",
+        "color": "雾粉"
       }
     ],
     "last_visit": "2025-05-14",
@@ -251,11 +266,13 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2026-05-20"
+        "date": "2026-05-20",
+        "color": "珍珠白"
       },
       {
         "product_id": "scarf",
-        "date": "2025-11-12"
+        "date": "2025-11-12",
+        "color": "浅灰"
       }
     ],
     "last_visit": "2026-05-20",
@@ -273,7 +290,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-06-12"
+        "date": "2025-06-12",
+        "color": "月白"
       }
     ],
     "last_visit": "2025-07-16",
@@ -291,7 +309,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2026-02-24"
+        "date": "2026-02-24",
+        "color": "米白"
       }
     ],
     "last_visit": "2026-02-24",
@@ -309,7 +328,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2025-08-12"
+        "date": "2025-08-12",
+        "color": "浅灰"
       }
     ],
     "last_visit": "2025-08-12",
@@ -327,7 +347,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-09-12"
+        "date": "2025-09-12",
+        "color": "月白"
       }
     ],
     "last_visit": "2025-09-12",
@@ -345,7 +366,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2026-03-25"
+        "date": "2026-03-25",
+        "color": "月白"
       }
     ],
     "last_visit": "2026-03-25",
@@ -363,7 +385,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2025-02-12"
+        "date": "2025-02-12",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2025-04-21",
@@ -381,7 +404,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2025-03-12"
+        "date": "2025-03-12",
+        "color": "米白"
       }
     ],
     "last_visit": "2025-05-02",
@@ -399,7 +423,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2025-04-12"
+        "date": "2025-04-12",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2025-12-01",
@@ -417,7 +442,8 @@
     "purchases": [
       {
         "product_id": "yunwen",
-        "date": "2026-06-20"
+        "date": "2026-06-20",
+        "color": "墨蓝"
       }
     ],
     "last_visit": "2026-06-20",
@@ -435,7 +461,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-06-12"
+        "date": "2025-06-12",
+        "color": "月白"
       }
     ],
     "last_visit": "2025-08-05",
@@ -453,7 +480,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2026-04-26"
+        "date": "2026-04-26",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2026-04-26",
@@ -471,7 +499,8 @@
     "purchases": [
       {
         "product_id": "pearl",
-        "date": "2025-08-12"
+        "date": "2025-08-12",
+        "color": "珍珠白"
       }
     ],
     "last_visit": "2025-08-12",
@@ -489,7 +518,8 @@
     "purchases": [
       {
         "product_id": "dress",
-        "date": "2025-09-12"
+        "date": "2025-09-12",
+        "color": "月白"
       }
     ],
     "last_visit": "2025-09-12",
@@ -507,7 +537,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2026-05-24"
+        "date": "2026-05-24",
+        "color": "米白"
       }
     ],
     "last_visit": "2026-05-24",
@@ -525,7 +556,8 @@
     "purchases": [
       {
         "product_id": "scarf",
-        "date": "2025-02-12"
+        "date": "2025-02-12",
+        "color": "浅灰"
       }
     ],
     "last_visit": "2025-05-10",
@@ -543,7 +575,8 @@
     "purchases": [
       {
         "product_id": "yunwen",
-        "date": "2026-02-18"
+        "date": "2026-02-18",
+        "color": "烟灰"
       }
     ],
     "last_visit": "2026-02-18",

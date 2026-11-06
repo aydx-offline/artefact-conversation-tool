@@ -14,6 +14,7 @@ BRAND = load_brand(ROOT / "data" / "brand")
 SCENARIO = "1 Birthday and festive greetings"
 MENU = BRAND.menus[SCENARIO]
 TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "上次的围巾还合用吗？有空来店里喝杯茶。", "最近天气转凉，记得添件衣裳。"]
+NEW_TEXTS = ["林女士，愿您今天被喜欢的人和事围绕。", "秋意渐浓，店里新到了一些茶，等您来尝。"]
 
 
 def clients():
@@ -35,6 +36,13 @@ def candidate(i, text, **fields):
 
 def write(texts):
     return json.dumps({"candidates": [candidate(i, t) for i, t in enumerate(texts)]}, ensure_ascii=False)
+
+
+def revise(items):
+    return json.dumps({"候选": [{**{"序号": i}, **{ZH[k]: v for k, v in candidate(i, t).items()}} for i, t in items]}, ensure_ascii=False)
+
+
+ZH = {"strategy": "策略", "reason": "理由", "tone": "语气", "length": "长度", "text": "正文"}
 
 
 def fenced(raw):
@@ -66,6 +74,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual([s.name for s in result.steps], ["validate", "resolve", "select", "write", "check", "final"])
         self.assertEqual([c["text"] for c in result.candidates], TEXTS)
         self.assertTrue(all(c.passed for c in result.checks))
+        self.assertIsNotNone(result.resolved["next_festival"])
 
     def test_model_steps_keep_token_cost_and_latency(self):
         from ca.llm import Reply
@@ -76,12 +85,47 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(write_step.usage["total_cost"], 0.4)
         self.assertEqual(write_step.latency_ms, 20)
 
-    def test_failing_checks_keep_candidates_without_another_call(self):
-        model, result = run([write([TEXTS[0]] * 3)])
+    def test_retry_with_fewer_candidates_keeps_the_first_attempt(self):
+        first = json.dumps({"candidates": [candidate(0, t) for t in TEXTS]}, ensure_ascii=False)
+        second = json.dumps({"candidates": [candidate(i, t) for i, t in enumerate(TEXTS[:2])]}, ensure_ascii=False)
+        _, result = run([first, second])
+        self.assertEqual([c["text"] for c in result.candidates], TEXTS)
         self.assertEqual(result.status, "failed_checks")
+
+    def test_missing_length_or_reason_is_not_a_lost_message(self):
+        items = [{k: v for k, v in candidate(i, t).items() if k not in ("length", "reason")} for i, t in enumerate(TEXTS)]
+        model, result = run([json.dumps({"candidates": items}, ensure_ascii=False)])
+        self.assertEqual(result.status, "done")
         self.assertEqual(len(model.calls), 1)
+        self.assertEqual([c["length"] for c in result.candidates], ["", "", ""])
+
+    def test_revise_rewrites_only_failing_candidates(self):
+        model, result = run([write([TEXTS[0]] * 3), fenced(revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])]))])
+        self.assertEqual(result.status, "done")
+        user = model.calls[1][1]
+        self.assertIn("1. 和前面的消息太像", user)
+        self.assertNotIn("0. 和前面的消息太像", user)
+        self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0], *NEW_TEXTS])
+        self.assertEqual(
+            [s.name for s in result.steps],
+            ["validate", "resolve", "select", "write", "check", "revise", "check", "final"],
+        )
+
+    def test_revise_repairs_unreadable_write(self):
+        _, result = run(["这不是 JSON", "还不是", revise(enumerate(TEXTS))])
+        self.assertEqual(result.status, "done")
+        self.assertEqual([c["text"] for c in result.candidates], TEXTS)
+
+    def test_still_failing_after_revise_keeps_candidates(self):
+        _, result = run([write([TEXTS[0]] * 3), revise([(1, TEXTS[0]), (2, TEXTS[0])])])
+        self.assertEqual(result.status, "failed_checks")
+        self.assertEqual(len(result.candidates), 3)
+
+    def test_revise_error_keeps_the_drafts(self):
+        _, result = run([write([TEXTS[0]] * 3)] + [RuntimeError("超时")] * 3)
+        self.assertEqual(result.status, "failed_checks")
         self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0]] * 3)
-        self.assertEqual([s.name for s in result.steps], ["validate", "resolve", "select", "write", "check", "final"])
+        self.assertEqual([s.name for s in result.steps][-3:], ["check", "error", "final"])
 
     def test_model_errors_fail_the_case_with_no_candidates(self):
         _, result = run([RuntimeError("断线")] * 3)
@@ -89,7 +133,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.candidates, [])
         self.assertEqual(result.steps[-1].name, "error")
         self.assertIn("断线", result.steps[-1].raw)
-        self.assertIn('"candidates"', result.steps[-1].prompt)
+        self.assertIn('"候选"', result.steps[-1].prompt)
 
     def test_only_explicit_non_greeting_occasions_reach_prompts(self):
         rows = {
@@ -148,6 +192,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual([p["id"] for p in result.resolved["products"]], ["scarf"])
         self.assertEqual(result.resolved["days_since_purchase"], 247)
         self.assertEqual(result.resolved["today"], "2026-11-04")
+        self.assertIsNone(result.resolved["next_festival"])
         self.assertIsNotNone(result.resolved["days_to_birthday"])
 
 

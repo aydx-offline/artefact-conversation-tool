@@ -87,9 +87,24 @@ def combine_calls(replies):
     return (usage or None) if saw_usage else None, latency if saw_latency else None
 
 
+JSON_KEYS_ZH = {
+    "候选": "candidates", "策略": "strategy", "理由": "reason", "语气": "tone", "长度": "length",
+    "正文": "text", "选择": "picks", "评分": "scores", "序号": "candidate", "项目": "item",
+    "分数": "value", "客户姓名": "client_name", "场景": "scenario", "客户的话": "client_message",
+}
+
+
+def _english_keys(value):
+    if isinstance(value, dict):
+        return {JSON_KEYS_ZH.get(k, k): _english_keys(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_english_keys(v) for v in value]
+    return value
+
+
 def parse_json(raw):
     try:
-        return json.loads(raw[raw.index("{") : raw.rindex("}") + 1])
+        return _english_keys(json.loads(raw[raw.index("{") : raw.rindex("}") + 1]))
     except (json.JSONDecodeError, ValueError):
         return None
 

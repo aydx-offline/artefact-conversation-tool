@@ -1,3 +1,4 @@
+import re
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -11,6 +12,7 @@ from ca.prompts import (
     natural_language_is_chinese,
     plan_prompt,
     quote_data,
+    revise_prompt,
     write_prompt,
 )
 from ca.brand import load_brand
@@ -95,7 +97,7 @@ class PromptTest(unittest.TestCase):
         system, _ = write_prompt(RESOLVED, PLAN)
         for word in ("亲切温暖", "得体典雅", "真诚走心", "简洁轻松", "专业克制", "含蓄低调"):
             self.assertIn(word, system)
-        for word in ("简短", "1–50", "适中", "51–130", "150"):
+        for word in ("简短", "1–50", "适中", "51–130", "180"):
             self.assertIn(word, system)
 
     def test_write_includes_nonempty_case_preferences(self):
@@ -137,6 +139,72 @@ class PromptTest(unittest.TestCase):
         _, user = write_prompt({**resolved, "today": "2026-01-05", "days_since_message": 3}, PLAN)
         self.assertIn("（1月，冬季）", user)
         self.assertIn("上一条消息是3天前", user)
+
+    def test_spans_and_festivals_are_also_in_words(self):
+        resolved = {**RESOLVED, "days_since_purchase": 557, "months_since_visit": 14,
+                    "next_festival": ("春节", 5), "last_festival": ("元旦", 42)}
+        _, user = write_prompt(resolved, PLAN)
+        self.assertIn("距上次购买557天（一年多）", user)
+        self.assertIn("距上次到店14个月（一年多）", user)
+        self.assertIn("下一个节日：春节，还有5天", user)
+        self.assertIn("上一个节日：元旦，42天前", user)
+        _, user = write_prompt({**resolved, "days_since_purchase": 20, "months_since_visit": 24}, PLAN)
+        self.assertIn("距上次购买20天（不到一个月）", user)
+        self.assertIn("距上次到店24个月（两年）", user)
+
+    def test_draft_answers_her_last_message_without_tildes_or_blunt_brand_words(self):
+        system, _ = draft_prompt(RESOLVED, MENU)
+        self.assertIn("先回应她最后说的话", system)
+        self.assertNotIn("波浪号", system)
+        self.assertIn("上身很有气质", system)
+        self.assertIn("不追时尚", system)
+        judge, _ = judge_prompt(RESOLVED, CANDIDATES, EXPECT)
+        self.assertNotIn("波浪号", judge)
+
+    def test_prompts_sent_to_the_model_have_no_english(self):
+        for pair in (draft_prompt(RESOLVED, MENU), judge_prompt(RESOLVED, CANDIDATES, EXPECT), chat_prompt("帮我给林女士写生日问候")):
+            self.assertIsNone(re.search("[A-Za-z]", "\n".join(pair)), pair)
+        system, _ = draft_prompt(RESOLVED, MENU)
+        self.assertIn('{"候选":[{"策略"', system)
+
+    def test_product_and_event_details_reach_the_prompt(self):
+        _, user = draft_prompt(RESOLVED, MENU)
+        for word in ("颜色", "款式", "适合", "活动内容", SCARF["colors"], RESOLVED["event"]["content"]):
+            self.assertIn(word, user)
+
+    def test_judge_asks_for_every_row_and_old_products_still_render(self):
+        system, _ = judge_prompt(RESOLVED, CANDIDATES, EXPECT)
+        self.assertIn("三条共二十四行", system)
+        old = {k: v for k, v in SCARF.items() if k not in ("colors", "fit", "wear")}
+        _, user = draft_prompt({**RESOLVED, "products": [old], "event": {"name": "冬日私览", "date": "2026-11-20"}}, MENU)
+        self.assertIn("素缎围巾", user)
+        self.assertNotIn("颜色", user)
+
+    def test_revise_prompt_lists_problems_and_menu_in_chinese(self):
+        system, user = revise_prompt(RESOLVED, CANDIDATES, {1: ["策略不在菜单上"]}, MENU)
+        self.assertIsNone(re.search("[A-Za-z]", system + user))
+        self.assertIn("1. 策略不在菜单上", user)
+        self.assertIn("第0条消息", user)
+        for item in MENU:
+            self.assertIn(item, user)
+        self.assertIn('"序号":1', system)
+        self.assertNotIn("不能提折扣", system + user)
+
+    def test_voice_has_phrases_and_contrast_examples(self):
+        system, _ = draft_prompt(RESOLVED, MENU)
+        for text in ("料子本身在说话", "下次路过进来认个门", "不知道就不说", "四万多的价格确实得考虑一下"):
+            self.assertIn(text, system)
+
+    def test_purchase_colour_is_shown(self):
+        client = {**LIN, "purchases": [{"product_id": "scarf", "date": "2026-03-02", "color": "米白"}]}
+        _, user = draft_prompt({**RESOLVED, "client": client}, MENU)
+        self.assertIn("素缎围巾（2026-03-02，米白）", user)
+
+    def test_discount_may_offer_care_gift_or_trial(self):
+        system, _ = draft_prompt(RESOLVED, MENU)
+        self.assertNotIn("样品", system)
+        for word in ("免费护理", "小礼物", "试用"):
+            self.assertIn(word, system)
 
     def test_draft_forbids_invented_facts(self):
         system, _ = draft_prompt(RESOLVED, MENU)
@@ -190,7 +258,7 @@ class PromptTest(unittest.TestCase):
 
     def test_managed_prompts_keep_the_judge_rule(self):
         prompts = {item["name"]: item["prompt"] for item in managed_prompts(BRAND)}
-        self.assertEqual(set(prompts), {"ca/draft", "ca/judge", "ca/chat"})
+        self.assertEqual(set(prompts), {"ca/draft", "ca/revise", "ca/judge", "ca/chat"})
         judge = prompts["ca/judge"]
         self.assertEqual(judge[0]["role"], "system")
         self.assertIn("各项打分都要更加严格", judge[0]["content"])

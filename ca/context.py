@@ -16,6 +16,8 @@ class Context:
     today: str
     days_to_birthday: int | None
     days_since_message: int | None
+    next_festival: tuple | None
+    last_festival: tuple | None
 
 
 def _message_date(timestamp):
@@ -50,6 +52,9 @@ def resolve_context(timestamp, client, festivals, occasion, last_message=None):
     birthday = bool(client.get("birthday")) and _birthday_in_window(client["birthday"], today)
     if not occasion:
         occasion = "和".join(filter(None, ["生日" if birthday else "", festival]))
+    gaps = [(f["name"], (date.fromisoformat(f["date"]) - today).days) for f in festivals]
+    upcoming = min(((n, d) for n, d in gaps if d >= 0), key=lambda g: g[1], default=None)
+    past = min(((n, -d) for n, d in gaps if d < 0), key=lambda g: g[1], default=None)
     purchases = [date.fromisoformat(p["date"]) for p in client.get("purchases", [])]
     last_visit = client.get("last_visit")
     return Context(
@@ -61,4 +66,6 @@ def resolve_context(timestamp, client, festivals, occasion, last_message=None):
         today.isoformat(),
         _days_to_birthday(client["birthday"], today) if client.get("birthday") else None,
         (today - _message_date(last_message)).days if last_message else None,
+        upcoming,
+        past,
     )

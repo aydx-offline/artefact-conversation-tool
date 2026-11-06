@@ -72,10 +72,14 @@ class ContextTest(unittest.TestCase):
         self.assertEqual((ctx.days_to_birthday, ctx.days_since_message), (0, None))
         self.assertEqual(self.resolve("2026-03-16T10:00:00+08:00").days_to_birthday, 364)
 
+    def test_nearest_festivals(self):
+        ctx = self.resolve("2026-02-12T10:00:00+08:00")
+        self.assertEqual((ctx.next_festival, ctx.last_festival), (("春节", 5), ("元旦", 42)))
+
     def test_context_fields(self):
         self.assertEqual(
             list(Context.__dataclass_fields__),
-            ["occasion", "festival", "birthday", "days_since_purchase", "months_since_visit", "today", "days_to_birthday", "days_since_message"],
+            ["occasion", "festival", "birthday", "days_since_purchase", "months_since_visit", "today", "days_to_birthday", "days_since_message", "next_festival", "last_festival"],
         )
 
 

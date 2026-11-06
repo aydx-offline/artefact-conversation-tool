@@ -82,6 +82,6 @@ The final set is reserved for submission evaluation. The tuning set is separate 
 
 ## Frozen
 
-`48b43a33a917ab39a1d140fe4ff184236b91126155397b7d1bbd05e151f34b20`
+`32c98c0d4bcd2944a704b20270294af5a21b70b14f22a761a636b0af30e9cc5f`
 
 任一案例文件或已使用的客户档案发生变化时，此版本号随之变化。

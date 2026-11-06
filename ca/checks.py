@@ -5,7 +5,7 @@ from itertools import combinations
 CJK = re.compile("[\u4e00-\u9fff]")
 LATIN = re.compile("[A-Za-z]")
 CLAUSES = re.compile("[，。！？；,.!?;\n]")
-REFUSALS = ("没有", "不能", "不提供", "不打折")
+REFUSALS = ("没有", "不能", "不提供", "不打折", "没法", "给不了")
 OVERLAP_LIMIT = 0.75
 CHINESE_RATIO = 0.90
 CAPACITY_WORDS = ("仅限", "限量", "名额", "限定")
@@ -50,24 +50,20 @@ def has_offer(text, patterns):
 def check_candidates(candidates, brand, scenario, product_ids, owned_ids, event):
     rules = brand.rules
     texts = [c["text"] for c in candidates]
-    limits = rules["lengths"]
-    max_length = limits["max"]
+    max_length = rules["lengths"]["max"]
     allowed_ids = set(product_ids) | set(owned_ids)
-    outside = [p["name"] for p in brand.catalog if p["id"] not in allowed_ids]
+    shown = (event or {}).get("content", "")
+    outside = [p["name"] for p in brand.catalog if p["id"] not in allowed_ids and p["name"] not in shown]
     menu = brand.menus[scenario]
     strategies = [c["strategy"] for c in candidates]
     has_capacity = bool(event and event.get("capacity"))
-
-    def too_long(candidate):
-        low, high = limits.get(candidate["length"].split("（")[0], (0, -1))
-        return not low <= len(candidate["text"]) <= min(high, max_length)
 
     pairs = [
         (i, j) for (i, a), (j, b) in combinations(enumerate(texts), 2)
         if overlap(a, b) > rules.get("overlap_limit", OVERLAP_LIMIT)
     ]
     close = sorted({j for _, j in pairs})
-    bad_length = [i for i, c in enumerate(candidates) if too_long(c)]
+    bad_length = [i for i, t in enumerate(texts) if len(t) > max_length]
     bad_menu = [i for i, s in enumerate(strategies) if s not in menu]
     repeated = [i for i, s in enumerate(strategies) if s in strategies[:i]]
     blank = [i for i, t in enumerate(texts) if not t.strip()]

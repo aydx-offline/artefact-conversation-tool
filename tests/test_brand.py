@@ -21,7 +21,7 @@ class BrandTest(unittest.TestCase):
     def test_rules(self):
         rules = self.brand.rules
         self.assertEqual(rules["allowed_english"], ["Chengbai"])
-        self.assertEqual(rules["lengths"], {"简短": [1, 50], "适中": [51, 130], "max": 150})
+        self.assertEqual(rules["lengths"], {"简短": [1, 50], "适中": [51, 130], "max": 180})
         self.assertIn("%", rules["offer_patterns"])
         for word in ("最后机会", "仅此一天", "马上涨价", "限时"):
             self.assertIn(word, rules["forbidden"])
@@ -33,12 +33,14 @@ class BrandTest(unittest.TestCase):
             for item in items:
                 self.assertTrue(prose_is_chinese(item, allowed), item)
         for product in self.brand.catalog:
-            for key in ("name", "line", "materials", "care"):
+            for key in ("name", "line", "materials", "care", "colors", "fit", "wear"):
                 self.assertTrue(prose_is_chinese(product[key], allowed), product[key])
 
     def test_events(self):
         self.assertEqual(self.brand.events["winter"]["capacity"], 10)
         self.assertIsNone(self.brand.events["spring"]["capacity"])
+        for event in self.brand.events.values():
+            self.assertTrue(prose_is_chinese(event["content"], []), event["content"])
 
 
 if __name__ == "__main__":

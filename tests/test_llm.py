@@ -10,6 +10,7 @@ from ca.llm import (
     GlmModel,
     build_body,
     complete_with_retries,
+    parse_json,
     parse_reply,
     parse_usage,
     require_models,
@@ -67,6 +68,18 @@ class RetryTests(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             complete_with_retries(FlakyModel([TimeoutError("t"), "ok"]), "s", "u", sleeps.append)
         self.assertEqual(sleeps, [])
+
+    def test_parse_json_maps_chinese_keys(self):
+        raw = '结果：{"候选":[{"策略":"问候","理由":"r","语气":"t","长度":"简短","正文":"你好"}],"评分":[{"序号":0,"项目":"事实","分数":1}]}'
+        self.assertEqual(
+            parse_json(raw),
+            {
+                "candidates": [{"strategy": "问候", "reason": "r", "tone": "t", "length": "简短", "text": "你好"}],
+                "scores": [{"candidate": 0, "item": "事实", "value": 1}],
+            },
+        )
+        self.assertEqual(parse_json('{"客户姓名":"林女士","场景":"产品推荐","客户的话":""}'),
+                         {"client_name": "林女士", "scenario": "产品推荐", "client_message": ""})
 
     def test_first_success_does_not_sleep(self):
         sleeps = []
