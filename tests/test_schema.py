@@ -86,6 +86,11 @@ class SchemaTest(unittest.TestCase):
             ("history", case(history=[Message("bot", "你好", "2026-09-25T09:00:00+08:00")])),
             ("case_id", case(case_id="")),
             ("client_id", case(client_id="")),
+            ("case_id", case(case_id="../manifest")),
+            ("case_id", case(case_id="a/b")),
+            ("case_id", case(case_id="..")),
+            ("case_id", case(case_id=".hidden")),
+            ("case_id", case(case_id="a b")),
         ]
         for field, item in bad:
             with self.assertRaises(CaseError) as caught:

@@ -193,6 +193,14 @@ class PromptTest(unittest.TestCase):
         for text in ("料子本身在说话", "下次路过进来认个门", "不知道就不说", "四万多的价格确实得考虑一下"):
             self.assertIn(text, system)
 
+    def test_a_client_with_no_birthday_or_preferences_still_renders(self):
+        client = {k: v for k, v in LIN.items() if k not in ("birthday", "preferences")}
+        _, user = draft_prompt({**RESOLVED, "client": client}, MENU)
+        client_block = user.split("场景")[0]
+        self.assertNotIn("生日：", client_block)
+        self.assertNotIn("喜好：", client_block)
+        self.assertIn("林女士", user)
+
     def test_each_purchase_and_visit_shows_its_age(self):
         client = {**LIN, "last_visit": "2026-03-02", "purchases": [{"product_id": "scarf", "date": "2025-05-12", "color": "米白"}]}
         system, user = draft_prompt({**RESOLVED, "client": client, "today": "2026-11-06"}, MENU)

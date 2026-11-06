@@ -34,6 +34,16 @@ Around the pipeline:
 - **Models.** The writer is `glm-5.3-flash` and the judge is `GLM-5.3`, both through the Paratera endpoint. The two must differ. Both ran with reasoning set to `high`.
 - **Telemetry.** Langfuse is optional. With no keys the tool runs the same.
 
+### Why a pipeline and not an agent, for now
+
+- **No step needs to choose the next step.** The case already holds the client, the history, and the products. There is nothing to fetch and no decision about which tool to call.
+- **Repeatable.** Comparing versions on the same 50 cases only means something if every run takes the same path. An agent's path changes from run to run.
+- **Testable and cheap.** Each step has its own tests, and a case costs one write call (about 12 seconds and a twentieth of a cent). An agent loop multiplies the calls and the cost.
+- **Less room to invent.** The model never picks a tool, so it cannot look up or make up a client or product.
+- **Easy to debug.** A failure points to one step. Each defect in `docs/defects-and-next-steps.md` was found and fixed one step at a time.
+
+An agent earns its place when the tool has to read client history from WeChat or decide which clients to write to today. That plan is in `docs/future-implementation.md`.
+
 ## The test sets
 
 There are two separate sets, and no case is in both. Prompts were tuned on the 20 tuning cases. The 50 final cases were run four times (generator 0.1.11 to 0.1.14), because the first run exposed a conflict between the brand voice and the discount cases. Prompts were frozen before 0.1.13, and only code changed after that. The submission table is the last run, 0.1.14, so the final set is no longer fully held out.
@@ -98,7 +108,7 @@ If the judge returns a broken reply, it is asked again, up to twice.
 ## Design methodology
 
 ### 1. Scripts and the model
-Scripts decide what can be decided, and the model does only what needs language. This leaves less room to invent.
+Scripts decide what can be decided, and the model does only what needs language. This leaves less room to invent and reduce LLM hallucinations.
 
 | Done in scripts | Left to the LLM |
 | --- | --- |

@@ -204,6 +204,31 @@ class GlmTests(unittest.TestCase):
         self.assertEqual(reply.usage["total_cost"], 0.01)
         self.assertGreaterEqual(reply.latency_ms, 0)
 
+    def test_a_null_or_missing_reply_is_an_error_not_the_word_none(self):
+        for payload in ({"choices": [{"message": {"content": None}}]}, {"choices": []}, {}):
+            response = MagicMock()
+            response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
+            with patch("urllib.request.urlopen", return_value=response):
+                with self.assertRaisesRegex(RuntimeError, "empty or unexpected reply"):
+                    GlmModel(KEY, "https://example.invalid/v1", "m").complete("s", "u")
+
+    def test_a_rejected_request_is_not_retried(self):
+        for code in (400, 401, 403, 404):
+            error = urllib.error.HTTPError("https://example.invalid/v1", code, "no", {}, io.BytesIO(b"no"))
+            sleeps = []
+            with patch("urllib.request.urlopen", side_effect=error):
+                with self.assertRaisesRegex(RuntimeError, f"GLM {code}"):
+                    complete_with_retries(GlmModel(KEY, "https://example.invalid/v1", "m"), "s", "u", sleeps.append)
+            self.assertEqual(sleeps, [], code)
+
+    def test_rate_limits_and_server_errors_are_retried(self):
+        errors = [urllib.error.HTTPError("https://example.invalid/v1", 429, "slow", {}, io.BytesIO(b"slow")) for _ in range(3)]
+        sleeps = []
+        with patch("urllib.request.urlopen", side_effect=errors):
+            with self.assertRaises(RuntimeError):
+                complete_with_retries(GlmModel(KEY, "https://example.invalid/v1", "m"), "s", "u", sleeps.append)
+        self.assertEqual(sleeps, [2, 8])
+
     def test_http_error_includes_body_without_key(self):
         error = urllib.error.HTTPError(
             "https://example.invalid/v1",

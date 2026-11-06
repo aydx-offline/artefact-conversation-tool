@@ -69,6 +69,8 @@ def validate_case(case, *, allowed_names):
     for name in ("case_id", "client_id"):
         if not getattr(case, name):
             raise CaseError(name, "must not be empty")
+    if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", case.case_id):
+        raise CaseError("case_id", "use letters, digits, underscores, dots, and hyphens only")
     if case.scenario not in SCENARIOS:
         raise CaseError("scenario", f"unknown scenario {case.scenario!r}")
     try:

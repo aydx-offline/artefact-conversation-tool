@@ -30,7 +30,26 @@ We stopped fixing at 0.1.14. These are in the 50 submitted results, and `docs/ev
 4. **Revise leaves a repeated or off-menu strategy** (f02, f47, f48). The spec allows one revise. A replacement could be picked from unused menu items in code.
 5. **Free care outside its rule** (f27, f37), a message longer than the case asked (f29), and a generic message (f02).
 6. **The judge** is a model that was never checked against people, and it is not always consistent. Each version was run once.
-7. **Housekeeping.** 57 of 70 cases have empty expectations. Langfuse traces are ended in the code but this was not checked on screen. 14 work-log rows still need screenshots.
+7. **Housekeeping.** 57 of 70 cases have empty expectations. Langfuse traces are ended in the code but this was not checked on screen. 15 work-log rows still need screenshots.
+
+## Code defects found in review
+
+A code review of `ca/` and `tests/` found ten defects. Seven are fixed, each with a test written first:
+
+- a 29 February birthday crashed the date logic in most years;
+- a revise reply with an index such as `1.0` or `true` crashed the case;
+- a client without a birthday or preferences crashed the prompt;
+- an unknown client id stopped a run with a bare `KeyError`; it now names the case;
+- a case id with `/` or `..` could write outside the case folder; ids are now checked;
+- the manifest recorded the current version, not the version folder the run sat in;
+- a failed case write aborted the batch; it now fails that case only;
+- a null or empty model reply became the word "None", and a rejected request (400, 401, 403, 404) was retried.
+
+Three are recorded and not fixed:
+
+1. **A failed second draft discards a valid first draft.** If attempt 1 returns three candidates that are not yet ready and attempt 2 times out, the case fails with no candidates, and attempt 1's tokens are missing from the case file.
+2. **The judge keeps only its last call.** After retries, the earlier calls' cost, latency, and raw replies are lost, so Langfuse undercounts judge cost for those cases.
+3. **Langfuse timings are skewed, and cases are traced twice.** Spans start at upload time and end at upload time plus the recorded latency. `generate` and `evaluate` each trace the same case, so Langfuse shows duplicate traces and check scores.
 
 ## Next steps
 

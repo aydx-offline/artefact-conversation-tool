@@ -183,7 +183,7 @@ def generate(case, model, brand, clients, recorder, sleep=time.sleep):
             record(Step("revise", "\n".join(prompt), raw, *combine_calls([raw])))
             for item in _candidate_list(raw):
                 index = item.get("candidate")
-                if index in failures:
+                if isinstance(index, int) and not isinstance(index, bool) and index in failures:
                     candidates[index] = {k: item[k] for k in CANDIDATE_KEYS}
             checks = check()
         except ModelError as error:

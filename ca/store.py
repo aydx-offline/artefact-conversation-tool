@@ -49,7 +49,7 @@ class RunStore:
 
         data = dict(manifest)
         data.pop("end", None)
-        data["generator_version"] = GENERATOR_VERSION
+        data["generator_version"] = self.version
         data["start"] = started.isoformat()
         _write_once(run_dir / "manifest.json", data)
         self._lock(run_id)

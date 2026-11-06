@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCENARIO = "1 Birthday and festive greetings"
 BRAND = load_brand(ROOT / "data" / "brand")
 MENU = BRAND.menus[SCENARIO]
-TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "上次的围巾还合用吗？有空来店里喝杯茶。", "最近天气转凉，记得添件衣裳。"]
+TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "生日这天，上次的围巾还合用吗？有空来店里喝杯茶。", "生日快乐，最近天气转凉，记得添件衣裳。"]
 
 
 def plan():
@@ -219,6 +219,26 @@ class CliTest(unittest.TestCase):
         self.assertIn("颜色：", row["Product information"])
         self.assertNotIn("scarf", row["Client information"] + row["Product information"])
 
+    def test_an_unknown_client_stops_before_the_run_with_a_clear_message(self):
+        from ca.cli import main
+
+        self.case["client_id"] = "nobody"
+        self.case_path.write_text(json.dumps(self.case, ensure_ascii=False), encoding="utf-8")
+        with self.assertRaises(SystemExit) as caught:
+            main(["generate", "--case", str(self.case_path)], model=FakeModel([]), root=self.root)
+        self.assertIn("c1", str(caught.exception))
+        self.assertIn("nobody", str(caught.exception))
+        self.assertFalse((self.root / "runs").exists())
+
+    def test_a_failed_case_write_fails_the_case_not_the_batch(self):
+        from ca.cli import _generate_one
+        from ca.pipeline import Result
+
+        store = Mock()
+        store.write_case.side_effect = OSError("disk full")
+        with patch("ca.cli.generate", return_value=Result("done")), patch("ca.cli._case_file", return_value={"status": "done"}):
+            self.assertEqual(_generate_one(load_case(self.case), FakeModel([]), BRAND, {}, store, "r1"), "failed")
+
     def test_report_summarises_good_cases_items_and_problems(self):
         from ca.cli import main
 
@@ -287,7 +307,7 @@ class CliTest(unittest.TestCase):
         from ca.cli import main
 
         rows = [
-            {**self.case, "case_id": "c1", "occasion": "生日甲", "split": "tuning"},
+            {**self.case, "case_id": "c1", "occasion": "生日", "split": "tuning"},
             {**self.case, "case_id": "c2", "occasion": "生日乙", "split": "tuning"},
         ]
         cases = self.root / "cases" / "tuning.jsonl"

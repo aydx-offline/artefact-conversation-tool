@@ -54,9 +54,7 @@ def _client_lines(client, catalog, today=None):
         _field("等级", client["tier"]),
         _field("关系", client["relationship"]),
         _field("称呼", client["address"]),
-        _field("生日", client["birthday"]),
-        _field("喜好", client["preferences"]),
-    ]
+    ] + [_field(label, client[key]) for label, key in (("生日", "birthday"), ("喜好", "preferences")) if client.get(key)]
     ago = lambda d: age_words(d, today) if today else ""
     bought = [
         f"{names[p['product_id']]}（{'，'.join(filter(None, [p['date'], p.get('color'), ago(p['date'])]))}）"

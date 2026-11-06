@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parent.parent
 BRAND = load_brand(ROOT / "data" / "brand")
 SCENARIO = "1 Birthday and festive greetings"
 MENU = BRAND.menus[SCENARIO]
-TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "上次的围巾还合用吗？有空来店里喝杯茶。", "最近天气转凉，记得添件衣裳。"]
-NEW_TEXTS = ["林女士，愿您今天被喜欢的人和事围绕。", "秋意渐浓，店里备了些茶，等您来尝。"]
+TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "生日这天，上次的围巾还合用吗？有空来店里喝杯茶。", "生日快乐，最近天气转凉，记得添件衣裳。"]
+NEW_TEXTS = ["林女士，生日快乐，愿您今天被喜欢的人和事围绕。", "生日这天秋意渐浓，店里备了些茶，等您来尝。"]
 
 
 def clients():
@@ -91,6 +91,13 @@ class PipelineTests(unittest.TestCase):
         _, result = run([first, second])
         self.assertEqual([c["text"] for c in result.candidates], TEXTS)
         self.assertEqual(result.status, "failed_checks")
+
+    def test_a_revise_index_that_is_not_an_integer_is_ignored(self):
+        for index in (1.0, True, "1", 1.5, None):
+            raw = json.dumps({"候选": [{"序号": index, "策略": MENU[1], "理由": "r", "语气": "t", "长度": "简短", "正文": NEW_TEXTS[0]}]}, ensure_ascii=False)
+            _, result = run([write([TEXTS[0]] * 3), raw])
+            self.assertIn(result.status, ("done", "failed_checks"), index)
+            self.assertEqual(len(result.candidates), 3, index)
 
     def test_missing_length_or_reason_is_not_a_lost_message(self):
         items = [{k: v for k, v in candidate(i, t).items() if k not in ("length", "reason")} for i, t in enumerate(TEXTS)]

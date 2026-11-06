@@ -91,6 +91,11 @@ class ContextTest(unittest.TestCase):
         self.assertIn("还有5天，可以顺带提前送上生日祝福", ctx.birthday_note)
         self.assertEqual(self.resolve("2026-03-15T10:00:00+08:00").birthday_note, "今天是她的生日，可以顺带写生日快乐")
 
+    def test_a_leap_day_birthday_works_in_a_common_year(self):
+        client = {**self.lin, "birthday": "02-29"}
+        self.assertEqual(self.resolve("2026-02-28T10:00:00+08:00", client).birthday_note, "今天是她的生日，可以顺带写生日快乐")
+        self.assertIn("刚过1天", self.resolve("2026-03-01T10:00:00+08:00", client).birthday_note)
+
     def test_no_birthday_no_note(self):
         self.assertIsNone(self.resolve("2026-03-15T10:00:00+08:00", {**self.lin, "birthday": ""}).birthday_note)
 

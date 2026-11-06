@@ -3,6 +3,7 @@ import csv
 import hashlib
 import json
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -99,6 +100,9 @@ def _case_file(case, result):
 def _manifest_start(root, cases, source, writer_model):
     client_path = root / "data" / "clients.json"
     clients = load_clients(client_path)
+    for case in cases:
+        if case.client_id not in clients:
+            raise SystemExit(f"Case {case.case_id}: unknown client {case.client_id!r}")
     inputs = root / "cases" / "inputs.jsonl"
     tuning = root / "cases" / "tuning.jsonl"
     if inputs.exists() and tuning.exists():
@@ -108,6 +112,8 @@ def _manifest_start(root, cases, source, writer_model):
             for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         }
+        if used - set(clients):
+            raise SystemExit(f"cases/inputs.jsonl or cases/tuning.jsonl names unknown clients: {sorted(used - set(clients))}")
         version = test_set_version(inputs, tuning, [clients[client_id] for client_id in sorted(used)])
     else:
         source_data = source.read_bytes() if source else json.dumps(
@@ -212,10 +218,17 @@ def _generate_one(case, model, brand, clients, store, run_id):
             "status": "failed",
             "error": str(error),
         }
-    status = data["status"]
-    store.write_case(run_id, case.case_id, data)
-    store.append(run_id, "events.jsonl", {"case_id": case.case_id, "status": status})
-    return status
+    return _save(store, run_id, case.case_id, data)
+
+
+def _save(store, run_id, case_id, data):
+    try:
+        store.write_case(run_id, case_id, data)
+        store.append(run_id, "events.jsonl", {"case_id": case_id, "status": data["status"]})
+    except OSError as error:
+        print(f"{case_id}: could not save the case: {error}", file=sys.stderr)
+        return "failed"
+    return data["status"]
 
 
 def run_cases(cases, model, brand, clients, store, run_id, cancel_check=lambda: False, on_status=None, workers=2):
@@ -231,9 +244,7 @@ def run_cases(cases, model, brand, clients, store, run_id, cancel_check=lambda: 
                 "checks": [],
                 "status": "cancelled",
             }
-            store.write_case(run_id, case.case_id, data)
-            store.append(run_id, "events.jsonl", {"case_id": case.case_id, "status": "cancelled"})
-            return "cancelled"
+            return _save(store, run_id, case.case_id, data)
         if on_status:
             on_status(case.case_id, "running")
         return _generate_one(case, model, brand, clients, store, run_id)

@@ -48,6 +48,12 @@ class RunStoreTest(unittest.TestCase):
         self.assertNotIn("end", manifest)
         self.assertIn("写作模型", (run_dir / "manifest.json").read_text(encoding="utf-8"))
 
+    def test_manifest_records_the_version_folder_it_sits_in(self):
+        store = RunStore(self.root, "0.0.9")
+        run_id = store.begin({"writer_model": "w", "brand_hash": "", "client_store_hash": "", "test_set_version": "", "split": "final", "case_ids": ["c1"]})
+        manifest = json.loads((self.root / "0.0.9" / run_id / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["generator_version"], "0.0.9")
+
     def test_run_dir_is_public(self):
         run_id = self.begin()
         self.assertEqual(self.store.run_dir(run_id), self.root / GENERATOR_VERSION / run_id)

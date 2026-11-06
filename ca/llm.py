@@ -109,6 +109,10 @@ def parse_json(raw):
         return None
 
 
+class RejectedRequest(RuntimeError):
+    pass
+
+
 class GlmModel:
     def __init__(self, api_key, base_url, model_name, timeout=60, reasoning_effort=None):
         self._api_key = api_key
@@ -136,17 +140,19 @@ class GlmModel:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 latency_ms = int((time.perf_counter() - started) * 1000)
-                return Reply(
-                    payload["choices"][0]["message"]["content"],
-                    parse_usage(payload),
-                    latency_ms,
-                )
+                try:
+                    content = payload["choices"][0]["message"]["content"]
+                except (KeyError, IndexError, TypeError):
+                    content = None
+                if not isinstance(content, str) or not content:
+                    raise RuntimeError("GLM empty or unexpected reply")
+                return Reply(content, parse_usage(payload), latency_ms)
         except urllib.error.HTTPError as error:
             try:
                 body = error.read().decode("utf-8", errors="replace")[:500]
             finally:
                 error.close()
-            raise RuntimeError(f"GLM {error.code}: {body}") from error
+            raise (RejectedRequest if error.code in (400, 401, 403, 404) else RuntimeError)(f"GLM {error.code}: {body}") from error
 
 
 def complete_with_retries(model, system, user, sleep):
@@ -155,7 +161,7 @@ def complete_with_retries(model, system, user, sleep):
         try:
             return model.complete(system, user)
         except Exception as error:
-            if attempt == 2 or isinstance(error, TimeoutError):
+            if attempt == 2 or isinstance(error, (TimeoutError, RejectedRequest)):
                 raise
             sleep(delays[attempt])
 

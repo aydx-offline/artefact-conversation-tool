@@ -1,3 +1,4 @@
+import calendar
 from dataclasses import dataclass
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -33,7 +34,7 @@ def _in_window(day, today):
 
 def _birthday_offset(birthday, today):
     month, day = map(int, birthday.split("-"))
-    return min(((date(year, month, day) - today).days for year in (today.year - 1, today.year, today.year + 1)), key=abs)
+    return min(((date(year, month, min(day, calendar.monthrange(year, month)[1])) - today).days for year in (today.year - 1, today.year, today.year + 1)), key=abs)
 
 
 def _birthday_note(offset, greeting):
