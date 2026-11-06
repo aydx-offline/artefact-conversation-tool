@@ -148,10 +148,9 @@ def _models(env, model, judge_model):
         return model, judge_model
     writer_name, judge_name = require_models(env)
     url = env.get("GLM_BASE_URL") or DEFAULT_BASE_URL
-    timeout = _positive_int(env, "GLM_TIMEOUT", 60)
     return (
-        GlmModel(env["GLM_API_KEY"], url, writer_name, timeout, thinking=False),
-        GlmModel(env["GLM_API_KEY"], url, judge_name, timeout, thinking=True),
+        GlmModel(env["GLM_API_KEY"], url, writer_name, _positive_int(env, "GLM_TIMEOUT", 60), thinking=False),
+        GlmModel(env["GLM_API_KEY"], url, judge_name, _positive_int(env, "JUDGE_TIMEOUT", 300), thinking=True),
     )
 
 
@@ -307,6 +306,7 @@ def _evaluate_command(args, root, env, judge_model):
     store = RunStore(root / "runs", run_dir.parent.name)
     telemetry = open_telemetry(env)
     _publish(telemetry, brand)
+    case_files = []
     for case_id in manifest["case_ids"]:
         path = run_dir / "cases" / f"{case_id}.json"
         if not path.exists():
@@ -315,23 +315,28 @@ def _evaluate_command(args, root, env, judge_model):
         if case_file.get("status") == "failed" or len(case_file.get("candidates", [])) < 3:
             print(case_id, "skipped")
             continue
-        judge_call = None
+        case_files.append(case_file)
+
+    def judge_one(case_file):
         try:
             rows = evaluate_case(case_file, judge, brand)
-            judge_call = getattr(rows, "call", None)
+            return rows, getattr(rows, "call", None)
         except Exception as error:
             row = {
                 "evaluation_id": evaluation_id(),
                 "judge_model": getattr(judge, "model_name", type(judge).__name__),
                 "judge_version": JUDGE_VERSION,
-                "case_id": case_id,
+                "case_id": case_file["case"]["case_id"],
                 "status": "failed",
                 "reason": str(error),
             }
             if hasattr(error, "raw"):
                 row["raw"] = error.raw
-            judge_call = getattr(error, "call", None)
-            rows = [row]
+            return [row], getattr(error, "call", None)
+
+    with ThreadPoolExecutor(max_workers=_workers(env)) as pool:
+        judged = list(pool.map(judge_one, case_files))
+    for case_file, (rows, judge_call) in zip(case_files, judged):
         for row in rows:
             store.append(args.run, "scores.jsonl", row)
         telemetry.record_case_file(

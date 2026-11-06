@@ -29,6 +29,7 @@ def build_body(model_name, system, user, thinking=None):
     }
     if thinking is False:
         body["thinking"] = {"type": "disabled"}
+        body["reasoning_effort"] = "none"
     elif thinking is True:
         body["thinking"] = {"type": "enabled"}
     return body
@@ -139,8 +140,8 @@ def complete_with_retries(model, system, user, sleep):
     for attempt in range(3):
         try:
             return model.complete(system, user)
-        except Exception:
-            if attempt == 2:
+        except Exception as error:
+            if attempt == 2 or isinstance(error, TimeoutError):
                 raise
             sleep(delays[attempt])
 

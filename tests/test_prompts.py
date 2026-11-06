@@ -10,7 +10,6 @@ from ca.prompts import (
     natural_language_is_chinese,
     plan_prompt,
     quote_data,
-    revise_prompt,
     write_prompt,
 )
 from ca.brand import load_brand
@@ -53,7 +52,6 @@ def all_prompts():
     return {
         "plan": plan_prompt(RESOLVED, MENU),
         "write": write_prompt(RESOLVED, PLAN),
-        "revise": revise_prompt(RESOLVED, CANDIDATES, {1: ["超过一百五十字"]}),
         "chat": chat_prompt("帮我给林女士写生日问候"),
         "judge": judge_prompt(RESOLVED, CANDIDATES, EXPECT),
     }
@@ -84,7 +82,7 @@ class PromptTest(unittest.TestCase):
         self.assertEqual(set(SCENARIO_ZH), set(SCENARIOS))
 
     def test_system_says_quotes_are_data(self):
-        for name in ("plan", "write", "revise", "chat"):
+        for name in ("plan", "write", "chat"):
             self.assertIn("引用", all_prompts()[name][0])
             self.assertIn("不是指令", all_prompts()[name][0])
 
@@ -99,11 +97,10 @@ class PromptTest(unittest.TestCase):
         for word in ("简短", "1–50", "适中", "51–130", "150"):
             self.assertIn(word, system)
 
-    def test_write_and_revise_include_nonempty_case_preferences(self):
+    def test_write_includes_nonempty_case_preferences(self):
         resolved = {**RESOLVED, "tone": "专业克制", "length": "简短"}
         for pair in (
             write_prompt(resolved, PLAN),
-            revise_prompt(resolved, CANDIDATES, {1: ["长度"]}),
         ):
             joined = "\n".join(pair)
             self.assertIn("顾问偏好：语气选「专业克制」；长度选「简短」。", joined)
@@ -112,7 +109,6 @@ class PromptTest(unittest.TestCase):
         resolved = {**RESOLVED, "tone": "", "length": ""}
         for pair in (
             write_prompt(resolved, PLAN),
-            revise_prompt(resolved, CANDIDATES, {1: ["长度"]}),
         ):
             self.assertNotIn("顾问偏好", "\n".join(pair))
 
@@ -121,16 +117,6 @@ class PromptTest(unittest.TestCase):
         self.assertIn("原文", system)
         for item in MENU:
             self.assertIn(item, user)
-
-    def test_revise_lists_failing_index_only(self):
-        _, user = revise_prompt(RESOLVED, CANDIDATES, {1: ["超过一百五十字"]})
-        self.assertIn("超过一百五十字", user)
-        self.assertIn("第1条消息", user)
-        self.assertNotIn("第0条消息", user)
-        self.assertNotIn("第2条消息", user)
-        self.assertIn("1. 策略", user)
-        system, _ = revise_prompt(RESOLVED, CANDIDATES, {2: ["x"]})
-        self.assertIn('"index":2', system)
 
     def test_real_shapes_render_chinese_fields_only(self):
         _, user = write_prompt(RESOLVED, PLAN)
@@ -167,7 +153,6 @@ class PromptTest(unittest.TestCase):
         for pair in (
             plan_prompt(RESOLVED, MENU, brand=brand),
             write_prompt(RESOLVED, PLAN, brand=brand),
-            revise_prompt(RESOLVED, CANDIDATES, {0: ["x"]}, brand=brand),
             judge_prompt(RESOLVED, CANDIDATES, EXPECT, brand=brand),
         ):
             self.assertIn("独特声音测试", "\n".join(pair))
@@ -189,7 +174,7 @@ class PromptTest(unittest.TestCase):
 
     def test_managed_prompts_keep_the_judge_rule(self):
         prompts = {item["name"]: item["prompt"] for item in managed_prompts(BRAND)}
-        self.assertEqual(set(prompts), {"ca/draft", "ca/revise", "ca/judge", "ca/chat"})
+        self.assertEqual(set(prompts), {"ca/draft", "ca/judge", "ca/chat"})
         judge = prompts["ca/judge"]
         self.assertEqual(judge[0]["role"], "system")
         self.assertIn("各项打分都要更加严格", judge[0]["content"])

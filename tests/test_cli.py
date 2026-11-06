@@ -152,7 +152,12 @@ class CliTest(unittest.TestCase):
         )
         error = RuntimeError("judge unavailable")
         error.raw = "upstream reply"
-        with patch("ca.cli.evaluate_case", side_effect=[error, [{"case_id": "good", "status": "ok"}]]):
+        def judged(case_file, *_):
+            if case_file["case"]["case_id"] == "broken":
+                raise error
+            return [{"case_id": "good", "status": "ok"}]
+
+        with patch("ca.cli.evaluate_case", side_effect=judged):
             self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([]), root=self.root), 0)
         rows = [
             json.loads(line)
@@ -163,6 +168,23 @@ class CliTest(unittest.TestCase):
         self.assertEqual(rows[0]["reason"], "judge unavailable")
         self.assertEqual(rows[0]["raw"], "upstream reply")
         self.assertEqual(rows[1]["case_id"], "good")
+
+    def test_evaluate_judges_cases_in_parallel(self):
+        import threading
+
+        from ca.cli import main
+
+        run_id = self._stored_status_run([("a", "done", TEXTS), ("b", "done", TEXTS)])
+        barrier = threading.Barrier(2, timeout=5)
+
+        def judged(case_file, *_):
+            barrier.wait()
+            return [{"case_id": case_file["case"]["case_id"], "status": "ok"}]
+
+        with patch("ca.cli.evaluate_case", side_effect=judged):
+            self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([]), root=self.root), 0)
+        rows = (self.root / "runs" / GENERATOR_VERSION / run_id / "scores.jsonl").read_text(encoding="utf-8")
+        self.assertEqual([(json.loads(line)["case_id"], json.loads(line)["status"]) for line in rows.splitlines()], [("a", "ok"), ("b", "ok")])
 
     def test_evaluate_appends_to_the_run_version_it_reads(self):
         from ca.cli import main
@@ -250,11 +272,11 @@ class CliTest(unittest.TestCase):
 
         env = {"GLM_API_KEY": "key", "WRITER_MODEL": "writer", "JUDGE_MODEL": "judge"}
         writer, judge = _models(env, None, None)
-        self.assertEqual((writer.timeout, judge.timeout, _workers(env)), (60, 60, 2))
+        self.assertEqual((writer.timeout, judge.timeout, _workers(env)), (60, 300, 2))
 
-        configured = {**env, "GLM_TIMEOUT": "45", "CA_WORKERS": "3"}
+        configured = {**env, "GLM_TIMEOUT": "45", "JUDGE_TIMEOUT": "200", "CA_WORKERS": "3"}
         writer, judge = _models(configured, None, None)
-        self.assertEqual((writer.timeout, judge.timeout, _workers(configured)), (45, 45, 3))
+        self.assertEqual((writer.timeout, judge.timeout, _workers(configured)), (45, 200, 3))
 
     def test_batch_rejects_duplicate_ids_before_begin(self):
         from ca.cli import main
@@ -286,7 +308,7 @@ class CliTest(unittest.TestCase):
     def test_generate_returns_one_when_case_fails(self):
         from ca.cli import main
 
-        self.assertEqual(main(["generate", "--case", str(self.case_path)], model=FakeModel(["bad", "bad"]), root=self.root), 1)
+        self.assertEqual(main(["generate", "--case", str(self.case_path)], model=FakeModel([RuntimeError("断线")] * 3), root=self.root), 1)
 
     def test_worker_does_not_rewrite_after_successful_case_write(self):
         from ca.cli import _generate_one

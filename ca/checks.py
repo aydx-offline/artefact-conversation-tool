@@ -5,7 +5,7 @@ from itertools import combinations
 CJK = re.compile("[\u4e00-\u9fff]")
 LATIN = re.compile("[A-Za-z]")
 CLAUSES = re.compile("[，。！？；,.!?;\n]")
-REFUSALS = ("没有", "不能", "不提供")
+REFUSALS = ("没有", "不能", "不提供", "不打折")
 OVERLAP_LIMIT = 0.75
 CHINESE_RATIO = 0.90
 CAPACITY_WORDS = ("仅限", "限量", "名额", "限定")
@@ -59,7 +59,7 @@ def check_candidates(candidates, brand, scenario, product_ids, owned_ids, event)
     has_capacity = bool(event and event.get("capacity"))
 
     def too_long(candidate):
-        low, high = limits.get(candidate["length"], (0, -1))
+        low, high = limits.get(candidate["length"].split("（")[0], (0, -1))
         return not low <= len(candidate["text"]) <= min(high, max_length)
 
     pairs = [

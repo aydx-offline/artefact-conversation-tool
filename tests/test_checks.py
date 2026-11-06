@@ -48,6 +48,8 @@ class CheckTests(unittest.TestCase):
         self.assertFalse(length("好" * 131, "适中"))
         self.assertFalse(length("好" * 151, "适中"))
         self.assertTrue(length("好" * 10, "简短"))
+        self.assertTrue(length("好" * 10, "简短（1–50字）"))
+        self.assertFalse(length("好" * 51, "简短（1–50字）"))
 
     def test_overlap(self):
         self.assertFalse(run([TEXTS[0], TEXTS[0], TEXTS[2]])["overlap"].passed)
@@ -73,6 +75,7 @@ class CheckTests(unittest.TestCase):
         self.assertFalse(offer("给您打八折，没有"))
         self.assertTrue(offer("我们没有优惠"))
         self.assertTrue(offer("我们不能打折"))
+        self.assertTrue(offer("澄白从来不打折"))
 
     def test_chinese_empty_remainder(self):
         for text in ["", "Chengbai", "，。！"]:

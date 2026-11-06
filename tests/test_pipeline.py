@@ -14,7 +14,6 @@ BRAND = load_brand(ROOT / "data" / "brand")
 SCENARIO = "1 Birthday and festive greetings"
 MENU = BRAND.menus[SCENARIO]
 TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "上次的围巾还合用吗？有空来店里喝杯茶。", "最近天气转凉，记得添件衣裳。"]
-NEW_TEXTS = ["林女士，愿您今天被喜欢的人和事围绕。", "秋意渐浓，店里新到了一些茶，等您来尝。"]
 
 
 def clients():
@@ -36,10 +35,6 @@ def candidate(i, text, **fields):
 
 def write(texts):
     return json.dumps({"candidates": [candidate(i, t) for i, t in enumerate(texts)]}, ensure_ascii=False)
-
-
-def revise(items):
-    return json.dumps({"candidates": [candidate(i, t, index=i) for i, t in items]}, ensure_ascii=False)
 
 
 def fenced(raw):
@@ -81,28 +76,12 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(write_step.usage["total_cost"], 0.4)
         self.assertEqual(write_step.latency_ms, 20)
 
-    def test_revise_replaces_only_failing_indexes(self):
-        model, result = run([write([TEXTS[0]] * 3), fenced(revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])]))])
-        self.assertEqual(result.status, "done")
-        user = model.calls[1][1]
-        self.assertIn("1. 策略", user)
-        self.assertIn("2. 策略", user)
-        self.assertNotIn("0. 策略", user)
-        self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0], *NEW_TEXTS])
-        self.assertEqual(
-            [s.name for s in result.steps],
-            ["validate", "resolve", "select", "write", "check", "revise", "check", "final"],
-        )
-
-    def test_invalid_write_json_is_repaired_by_revise(self):
-        _, result = run(["这不是 JSON", "还不是", revise(enumerate(TEXTS))])
-        self.assertEqual(result.status, "done")
-        self.assertEqual([c["text"] for c in result.candidates], TEXTS)
-
-    def test_still_failing_after_revise_keeps_candidates(self):
-        _, result = run([write([TEXTS[0]] * 3), revise([(1, TEXTS[0]), (2, TEXTS[0])])])
+    def test_failing_checks_keep_candidates_without_another_call(self):
+        model, result = run([write([TEXTS[0]] * 3)])
         self.assertEqual(result.status, "failed_checks")
-        self.assertEqual(len(result.candidates), 3)
+        self.assertEqual(len(model.calls), 1)
+        self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0]] * 3)
+        self.assertEqual([s.name for s in result.steps], ["validate", "resolve", "select", "write", "check", "final"])
 
     def test_model_errors_fail_the_case_with_no_candidates(self):
         _, result = run([RuntimeError("断线")] * 3)
@@ -111,14 +90,6 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.steps[-1].name, "error")
         self.assertIn("断线", result.steps[-1].raw)
         self.assertIn('"candidates"', result.steps[-1].prompt)
-
-    def test_revise_accepts_string_indexes(self):
-        raw = json.dumps(
-            {"candidates": [candidate(i, text, index=str(i)) for i, text in enumerate(NEW_TEXTS, 1)]},
-            ensure_ascii=False,
-        )
-        _, result = run([write([TEXTS[0]] * 3), raw])
-        self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0], *NEW_TEXTS])
 
     def test_only_explicit_non_greeting_occasions_reach_prompts(self):
         rows = {

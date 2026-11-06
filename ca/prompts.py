@@ -169,34 +169,11 @@ def write_prompt(resolved: dict, plan: dict, brand=None) -> tuple[str, str]:
     return system, f"{user}\n{preference}" if preference else user
 
 
-def _candidate_lines(candidates: list, indexes=None) -> str:
+def _candidate_lines(candidates: list) -> str:
     return "\n".join(
         f"{i}. 策略：{c['strategy']}；语气：{c['tone']}；长度：{c['length']}；消息：{quote_data(c['text'])}"
         for i, c in enumerate(candidates)
-        if indexes is None or i in indexes
     )
-
-
-def revise_prompt(resolved: dict, candidates: list, failures: dict, brand=None) -> tuple[str, str]:
-    brand = brand or _default_brand()
-    first = min(failures)
-    system = (
-        f"{_house(brand)}\n{DATA_NOTE}\n"
-        "任务：只重写下面列出的未通过检查的消息，保持各条策略不同，序号保持原样。\n"
-        f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
-        f"重写后仍要像微信里随手写的话。{_voice_line()}"
-        '只输出如下格式，只含需要重写的序号：'
-        '{"candidates":[{"index":' + str(first) + ',"strategy":"","reason":"","tone":"","length":"","text":""}]}'
-    )
-    problems = "\n".join(f"{i}. " + "；".join(items) for i, items in sorted(failures.items()))
-    user = (
-        f"{_case_body(resolved, brand)}\n需要重写的消息：\n{_candidate_lines(candidates, failures)}"
-        f"\n未通过的序号与问题：\n{problems}"
-    )
-    preference = _preference_line(resolved)
-    if preference:
-        user += f"\n{preference}"
-    return system, user
 
 
 def chat_prompt(request: str) -> tuple[str, str]:
@@ -254,19 +231,17 @@ def managed_prompts(brand=None) -> list[dict]:
     candidates = [{"strategy": menu[0], "reason": "合她的情况", "tone": "亲切温暖", "length": "简短", "text": "你好"}]
     systems = {
         "ca/draft": draft_prompt(resolved, menu, brand)[0],
-        "ca/revise": revise_prompt(resolved, candidates, {0: ["长度"]}, brand)[0],
         "ca/judge": judge_prompt(resolved, candidates, [], brand)[0],
         "ca/chat": chat_prompt("你好")[0],
     }
     users = {
         "ca/draft": "{{case}}\n策略菜单：\n{{menu}}\n{{preference}}",
-        "ca/revise": "{{case}}\n需要重写的消息：\n{{messages}}\n未通过的序号与问题：\n{{problems}}\n{{preference}}",
         "ca/judge": "{{case}}\n期望：\n{{expectations}}\n待评消息：\n{{messages}}",
         "ca/chat": "顾问的话：{{request}}",
     }
     return [
         {"name": name, "prompt": [{"role": "system", "content": systems[name]}, {"role": "user", "content": users[name]}]}
-        for name in ("ca/draft", "ca/revise", "ca/judge", "ca/chat")
+        for name in ("ca/draft", "ca/judge", "ca/chat")
     ]
 
 

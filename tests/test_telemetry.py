@@ -235,7 +235,7 @@ class TelemetryTests(unittest.TestCase):
         client = Client()
         first = publish_prompts(client, brand)
         second = publish_prompts(client, brand)
-        self.assertEqual(first, ["ca/draft", "ca/revise", "ca/judge", "ca/chat"])
+        self.assertEqual(first, ["ca/draft", "ca/judge", "ca/chat"])
         self.assertEqual(second, [])
         self.assertEqual(client.created, first)
         self.assertEqual(publish_prompts(None, brand), [])

@@ -62,6 +62,12 @@ class RetryTests(unittest.TestCase):
             complete_with_retries(model, "s", "u", sleeps.append)
         self.assertEqual(sleeps, [2, 8])
 
+    def test_timeout_is_not_retried(self):
+        sleeps = []
+        with self.assertRaises(TimeoutError):
+            complete_with_retries(FlakyModel([TimeoutError("t"), "ok"]), "s", "u", sleeps.append)
+        self.assertEqual(sleeps, [])
+
     def test_first_success_does_not_sleep(self):
         sleeps = []
         self.assertEqual(complete_with_retries(FlakyModel(["ok"]), "s", "u", sleeps.append), "ok")
@@ -107,6 +113,7 @@ class GlmTests(unittest.TestCase):
     def test_thinking_disabled_is_sent(self):
         body = build_body("m", "sys", "usr", thinking=False)
         self.assertEqual(body["thinking"], {"type": "disabled"})
+        self.assertEqual(body["reasoning_effort"], "none")
 
     def test_complete_sends_disabled_thinking(self):
         model = GlmModel(KEY, "https://example.invalid/v1", "m", thinking=False)

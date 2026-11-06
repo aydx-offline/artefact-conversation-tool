@@ -6,21 +6,9 @@ from ca.checks import check_candidates
 from ca.clients import ALLOWED_NAMES
 from ca.context import resolve_context
 from ca.llm import combine_calls, complete_with_retries, parse_json
-from ca.prompts import draft_prompt, revise_prompt
+from ca.prompts import draft_prompt
 from ca.schema import CaseError, validate_case
 
-CHECK_ZH = {
-    "count": "数量或空白",
-    "chinese": "中文比例",
-    "length": "长度",
-    "overlap": "与前面的消息太像",
-    "menu": "策略不在菜单上",
-    "distinct_strategies": "策略重复",
-    "forbidden": "含催促用语",
-    "offer": "含不允许的优惠",
-    "product": "提到了不该提的产品",
-    "capacity": "提到了名额",
-}
 CANDIDATE_KEYS = ("strategy", "reason", "tone", "length", "text")
 
 
@@ -106,14 +94,6 @@ def _resolve(case, brand, clients):
     )
 
 
-def _failures(checks):
-    failures = {}
-    for check in checks:
-        for i in check.indexes:
-            failures.setdefault(i, []).append(CHECK_ZH[check.name])
-    return failures
-
-
 def generate(case, model, brand, clients, recorder, sleep=time.sleep):
     result = Result("failed")
 
@@ -155,26 +135,8 @@ def generate(case, model, brand, clients, recorder, sleep=time.sleep):
 
         owned = [p["product_id"] for p in resolved["client"].get("purchases", [])]
         product_ids = [p["id"] for p in resolved["products"]]
-
-        def check():
-            checks = check_candidates(candidates, brand, case.scenario, product_ids, owned, resolved["event"])
-            record(Step("check"))
-            return checks
-
-        checks = check()
-        if not all(c.passed for c in checks):
-            failures = _failures(checks)
-            prompt = revise_prompt(resolved, candidates, failures, brand)
-            raw = call(prompt)
-            record(Step("revise", "\n".join(prompt), raw, *combine_calls([raw])))
-            for item in _candidate_list(raw):
-                try:
-                    index = int(item.get("index"))
-                except (TypeError, ValueError):
-                    continue
-                if index in failures:
-                    candidates[index] = {k: item[k] for k in CANDIDATE_KEYS}
-            checks = check()
+        checks = check_candidates(candidates, brand, case.scenario, product_ids, owned, resolved["event"])
+        record(Step("check"))
     except ModelError as error:
         result.candidates, result.checks = [], []
         record(Step("error", "\n".join(prompt), str(error)))
