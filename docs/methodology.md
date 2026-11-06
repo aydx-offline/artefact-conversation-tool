@@ -129,6 +129,14 @@ When the judge found an error a rule could decide, the fix went into code, not a
 - **Record.** Every run keeps each prompt and raw reply, and is never overwritten. Every result carries the generator, judge, and test-set versions, and Langfuse holds tokens, latency, and a cost from the GLM price registry for each call.
 - **Separation.** The writer and the judge are different models. The case expectations reach only the judge.
 
+Langfuse shows the write, revise, and judge calls of one case with their tokens, latency, and cost; the judge averages across the final cases; and the versions of the judge prompt.
+
+![Langfuse trace of case f50: the write, revise, and judge calls with tokens, latency, and cost](../log/screenshots/step-15-langfuse-cost.png)
+
+![Langfuse dashboard: the judge averages](../log/screenshots/step-10-score-dashboard.png)
+
+![Langfuse prompt versions of the judge](../log/screenshots/step-10-prompt-versions.png)
+
 ### 3. Error handling and self-healing
 
 Inside a run, the tool repairs itself without a person:
@@ -142,6 +150,10 @@ Inside a run, the tool repairs itself without a person:
 ### 4. Tuning and self-improvement
 
 Between runs the loop is: run the set, judge it, read `report`, group the failures, and decide what kind each is. A rule can decide it: add a check or compute it in code. It needs language: change the prompt or the brand data. Then rerun the same set under a new generator version and compare with the same judge version.
+
+`report` prints the good cases, the item means, and the problems. This is its output for the submitted run:
+
+![Output of the report command for run 0.1.14](../log/screenshots/step-16-report-output.png)
 
 - **One kind of change at a time,** each logged as a step with the version it created.
 - **The backtest first.** A new check is run over the saved messages from earlier runs before any model call, to see what it would catch.

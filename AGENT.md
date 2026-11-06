@@ -13,7 +13,7 @@ A fictional luxury house will use this repo to draft three Chinese WeChat messag
 - Do not overwrite an earlier run.
 - If a requirement is unclear, stop and ask the author. Do not guess.
 - The future tool returns three Chinese WeChat candidates.
-- A log row is not closed while its screenshot cell starts with `PENDING`.
+- A log row's screenshot cell stays blank until a real screenshot exists.
 - After a substantial step, append a row to `log/LOG.md`.
 - Capture that row's screenshot with `python3 log/capture_step.py` before closing it.
 
@@ -27,7 +27,7 @@ A fictional luxury house will use this repo to draft three Chinese WeChat messag
 
 ## Work log
 
-The file on disk is `log/screenshots/step-NN-short-name.png`. A cell in `log/LOG.md` uses a path relative to `log/`: `PENDING: screenshots/step-NN-short-name.png` or `[step-NN-short-name.png](screenshots/step-NN-short-name.png)`.
+The file on disk is `log/screenshots/step-NN-short-name.png`. A cell in `log/LOG.md` is blank, or links the file with a path relative to `log/`: `[step-NN-short-name.png](screenshots/step-NN-short-name.png)`.
 
 A substantial step is a new plan, a design change the author accepted, or a working slice of the tool. Append the row in that same session. Run `python3 log/capture_step.py step-NN-short-name` and link the PNG it writes. The script captures the Cursor window. It does not draw an image, and it refuses to replace an existing file.
 

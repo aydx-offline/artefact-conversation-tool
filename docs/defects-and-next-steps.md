@@ -30,7 +30,7 @@ We stopped fixing at 0.1.14. These are in the 50 submitted results, and `docs/ev
 4. **Revise leaves a repeated or off-menu strategy** (f02, f47, f48). The spec allows one revise. A replacement could be picked from unused menu items in code.
 5. **Free care outside its rule** (f27, f37), a message longer than the case asked (f29), and a generic message (f02).
 6. **The judge** is a model that was never checked against people, and it is not always consistent. Each version was run once.
-7. **Housekeeping.** 57 of 70 cases have empty expectations. Langfuse traces are ended in the code but this was not checked on screen. 15 work-log rows still need screenshots.
+7. **Housekeeping.** 57 of 70 cases have empty expectations. Langfuse traces are ended in the code but this was not checked on screen. 5 work-log rows still need screenshots.
 
 ## Code defects found in review
 

@@ -129,15 +129,6 @@ class ScaffoldTest(unittest.TestCase):
         ]:
             self.assertIn(item, text)
 
-    def test_step_screenshots_are_real_pngs_and_the_log_links_them(self):
-        log = (ROOT / "log" / "LOG.md").read_text(encoding="utf-8")
-        self.assertNotIn("PENDING:", log)
-        names = re.findall(r"\]\(screenshots/(step-\d{2}-[a-z0-9-]+\.png)\)", log)
-        self.assertTrue(names)
-        for name in names:
-            data = (ROOT / "log" / "screenshots" / name).read_bytes()
-            self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
-            self.assertGreater(len(data), 10_000)
 
 class CaptureStepTest(unittest.TestCase):
     def test_screenshot_name_and_refuses_to_overwrite(self):

@@ -21,3 +21,6 @@ __pycache__/
 .worktrees/
 .superpowers/
 .claude/
+
+# PDFs made from the submission documents.
+submission/

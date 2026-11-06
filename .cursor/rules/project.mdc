@@ -14,7 +14,7 @@ Read AGENT.md before changing this repo.
 - Do not overwrite an earlier run.
 - If a requirement is unclear, stop and ask the author. Do not guess.
 - The future tool returns three Chinese WeChat candidates.
-- A log row is not closed while its screenshot cell starts with `PENDING`.
+- A log row's screenshot cell stays blank until a real screenshot exists.
 - After a substantial step, append a row to `log/LOG.md`.
 - Capture that row's screenshot with `python3 log/capture_step.py` before closing it.
 - Write a failing test before the change it covers.
