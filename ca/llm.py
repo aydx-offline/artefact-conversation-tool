@@ -1,4 +1,5 @@
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -18,18 +19,72 @@ class FakeModel:
         return reply
 
 
-def build_body(model_name, system, user):
-    return {
+def build_body(model_name, system, user, thinking=None):
+    body = {
         "model": model_name,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
     }
+    if thinking is False:
+        body["thinking"] = {"type": "disabled"}
+    elif thinking is True:
+        body["thinking"] = {"type": "enabled"}
+    return body
+
+
+class Reply(str):
+    def __new__(cls, content, usage=None, latency_ms=None):
+        reply = str.__new__(cls, content)
+        reply.usage = usage
+        reply.latency_ms = latency_ms
+        return reply
 
 
 def parse_reply(raw):
     return json.loads(raw)["choices"][0]["message"]["content"]
+
+
+def parse_usage(payload):
+    usage = payload.get("usage") if isinstance(payload, dict) else None
+    if not isinstance(usage, dict):
+        return None
+    details = {}
+    pairs = (
+        ("prompt_tokens", "input"),
+        ("input_tokens", "input"),
+        ("completion_tokens", "output"),
+        ("output_tokens", "output"),
+        ("total_tokens", "total"),
+    )
+    for source, name in pairs:
+        value = usage.get(source)
+        if isinstance(value, int) and not isinstance(value, bool):
+            details.setdefault(name, value)
+    for name in ("input_cost", "output_cost", "total_cost"):
+        value = usage.get(name)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            details[name] = float(value)
+    return details or None
+
+
+def combine_calls(replies):
+    usage = {}
+    latency = 0
+    saw_usage = False
+    saw_latency = False
+    for reply in replies:
+        for key, value in (getattr(reply, "usage", None) or {}).items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            usage[key] = usage.get(key, 0) + value
+            saw_usage = True
+        milliseconds = getattr(reply, "latency_ms", None)
+        if isinstance(milliseconds, int):
+            latency += milliseconds
+            saw_latency = True
+    return (usage or None) if saw_usage else None, latency if saw_latency else None
 
 
 def parse_json(raw):
@@ -40,11 +95,12 @@ def parse_json(raw):
 
 
 class GlmModel:
-    def __init__(self, api_key, base_url, model_name, timeout=180):
+    def __init__(self, api_key, base_url, model_name, timeout=60, thinking=None):
         self._api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
         self.timeout = timeout
+        self.thinking = thinking
 
     def __repr__(self):
         return f"GlmModel(base_url={self.base_url!r}, model_name={self.model_name!r})"
@@ -52,15 +108,24 @@ class GlmModel:
     def complete(self, system, user):
         request = urllib.request.Request(
             self.base_url,
-            data=json.dumps(build_body(self.model_name, system, user)).encode("utf-8"),
+            data=json.dumps(
+                build_body(self.model_name, system, user, thinking=self.thinking)
+            ).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self._api_key}",
             },
         )
+        started = time.perf_counter()
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                return parse_reply(response.read().decode("utf-8"))
+                payload = json.loads(response.read().decode("utf-8"))
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                return Reply(
+                    payload["choices"][0]["message"]["content"],
+                    parse_usage(payload),
+                    latency_ms,
+                )
         except urllib.error.HTTPError as error:
             try:
                 body = error.read().decode("utf-8", errors="replace")[:500]

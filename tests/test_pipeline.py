@@ -60,34 +60,47 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(caught.exception.field, "occasion")
         self.assertEqual(model.calls, [])
 
-    def test_plan_retry_then_happy_path_step_order(self):
-        model, result = run([plan(MENU[0], MENU[0], MENU[1]), fenced(plan(*MENU[:3])), fenced(write(TEXTS))])
+    def test_one_call_retries_then_finishes(self):
+        first = json.dumps(
+            {"candidates": [candidate(0, text) for text in TEXTS]},
+            ensure_ascii=False,
+        )
+        model, result = run([first, fenced(write(TEXTS))])
         self.assertEqual(result.status, "done")
-        self.assertEqual(len(model.calls), 3)
-        self.assertEqual([s.name for s in result.steps], ["validate", "resolve", "select", "plan", "write", "check", "final"])
+        self.assertEqual(len(model.calls), 2)
+        self.assertEqual([s.name for s in result.steps], ["validate", "resolve", "select", "write", "check", "final"])
         self.assertEqual([c["text"] for c in result.candidates], TEXTS)
         self.assertTrue(all(c.passed for c in result.checks))
 
+    def test_model_steps_keep_token_cost_and_latency(self):
+        from ca.llm import Reply
+
+        write_reply = Reply(fenced(write(TEXTS)), {"input": 4, "output": 5, "total": 9, "total_cost": 0.4}, 20)
+        _, result = run([write_reply])
+        write_step = next(step for step in result.steps if step.name == "write")
+        self.assertEqual(write_step.usage["total_cost"], 0.4)
+        self.assertEqual(write_step.latency_ms, 20)
+
     def test_revise_replaces_only_failing_indexes(self):
-        model, result = run([plan(*MENU[:3]), write([TEXTS[0]] * 3), fenced(revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])]))])
+        model, result = run([write([TEXTS[0]] * 3), fenced(revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])]))])
         self.assertEqual(result.status, "done")
-        user = model.calls[2][1]
+        user = model.calls[1][1]
         self.assertIn("1. 策略", user)
         self.assertIn("2. 策略", user)
         self.assertNotIn("0. 策略", user)
         self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0], *NEW_TEXTS])
         self.assertEqual(
             [s.name for s in result.steps],
-            ["validate", "resolve", "select", "plan", "write", "check", "revise", "check", "final"],
+            ["validate", "resolve", "select", "write", "check", "revise", "check", "final"],
         )
 
     def test_invalid_write_json_is_repaired_by_revise(self):
-        _, result = run([plan(*MENU[:3]), "这不是 JSON", revise(enumerate(TEXTS))])
+        _, result = run(["这不是 JSON", "还不是", revise(enumerate(TEXTS))])
         self.assertEqual(result.status, "done")
         self.assertEqual([c["text"] for c in result.candidates], TEXTS)
 
     def test_still_failing_after_revise_keeps_candidates(self):
-        _, result = run([plan(*MENU[:3]), write([TEXTS[0]] * 3), revise([(1, TEXTS[0]), (2, TEXTS[0])])])
+        _, result = run([write([TEXTS[0]] * 3), revise([(1, TEXTS[0]), (2, TEXTS[0])])])
         self.assertEqual(result.status, "failed_checks")
         self.assertEqual(len(result.candidates), 3)
 
@@ -97,14 +110,14 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.candidates, [])
         self.assertEqual(result.steps[-1].name, "error")
         self.assertIn("断线", result.steps[-1].raw)
-        self.assertIn('"picks"', result.steps[-1].prompt)
+        self.assertIn('"candidates"', result.steps[-1].prompt)
 
     def test_revise_accepts_string_indexes(self):
         raw = json.dumps(
             {"candidates": [candidate(i, text, index=str(i)) for i, text in enumerate(NEW_TEXTS, 1)]},
             ensure_ascii=False,
         )
-        _, result = run([plan(*MENU[:3]), write([TEXTS[0]] * 3), raw])
+        _, result = run([write([TEXTS[0]] * 3), raw])
         self.assertEqual([c["text"] for c in result.candidates], [TEXTS[0], *NEW_TEXTS])
 
     def test_only_explicit_non_greeting_occasions_reach_prompts(self):
@@ -129,14 +142,14 @@ class PipelineTests(unittest.TestCase):
 
     def test_expectations_never_reach_the_model(self):
         case = make_case(expectations=["必须提到围巾保养"])
-        model, result = run([plan(*MENU[:3]), write(TEXTS)], case)
+        model, result = run([write(TEXTS)], case)
         seen = [text for call in model.calls for text in call] + [s.prompt for s in result.steps]
         self.assertFalse(any("必须提到围巾保养" in text for text in seen))
         self.assertEqual(result.resolved["expectations"], ["必须提到围巾保养"])
 
     def test_resolved_is_a_copy_of_the_store(self):
         store = clients()
-        _, result = run([plan(*MENU[:3]), write(TEXTS)], store=store)
+        _, result = run([write(TEXTS)], store=store)
         store["lin"]["name"] = "改名"
         self.assertEqual(result.resolved["client"]["name"], "林女士")
 
@@ -145,8 +158,8 @@ class PipelineTests(unittest.TestCase):
         stored = [{"sender": "client", "text": "最近好吗？", "time": "2026-10-01T10:00:00"}]
         store["lin"]["history"] = stored
 
-        _, omitted = run([plan(*MENU[:3]), write(TEXTS)], store=store)
-        _, empty = run([plan(*MENU[:3]), write(TEXTS)], case=make_case(history=[]), store=store)
+        _, omitted = run([write(TEXTS)], store=store)
+        _, empty = run([write(TEXTS)], case=make_case(history=[]), store=store)
 
         self.assertEqual(omitted.resolved["history"], stored)
         self.assertEqual(empty.resolved["history"], [])

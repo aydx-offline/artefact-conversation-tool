@@ -121,6 +121,28 @@ def _house(brand) -> str:
     return "你是奢侈品牌澄白（Chengbai）的客户顾问助手，用中文为微信写给客户的消息。\n" + brand.voice
 
 
+def _voice_line() -> str:
+    return (
+        "写成中文母语者在微信里平时会写的话。可以带语气词、波浪号，或一两个表情。"
+        "先接住她，再自然说到这件事，不要端着介绍。不要叫宝贝，不要催，不要提折扣、样品或限时。\n"
+        "称呼：正式多用您。熟络没有固定称呼，您、你、亲、亲爱的，或直接叫名字，怎么自然怎么写。\n"
+    )
+
+
+def draft_prompt(resolved: dict, menu: list, brand=None) -> tuple[str, str]:
+    brand = brand or _default_brand()
+    system = (
+        f"{_house(brand)}\n{DATA_NOTE}\n"
+        "任务：从策略菜单里选出三个互不相同的策略，并各写一条微信消息。策略必须逐字照抄菜单原文。\n"
+        f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
+        f"{_voice_line()}"
+        '只输出如下格式：{"candidates":[{"strategy":"菜单原文","reason":"选它的理由","tone":"","length":"","text":""}]}'
+    )
+    user = f"{_case_body(resolved, brand)}\n策略菜单：\n" + "\n".join(f"- {item}" for item in menu)
+    preference = _preference_line(resolved)
+    return system, f"{user}\n{preference}" if preference else user
+
+
 def plan_prompt(resolved: dict, menu: list, brand=None) -> tuple[str, str]:
     brand = brand or _default_brand()
     system = (
@@ -138,6 +160,7 @@ def write_prompt(resolved: dict, plan: dict, brand=None) -> tuple[str, str]:
         f"{_house(brand)}\n{DATA_NOTE}\n"
         "任务：按给定的三个策略，各写一条微信消息，共三条。\n"
         f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
+        f"{_voice_line()}"
         '只输出如下格式：{"candidates":[{"strategy":"","reason":"","tone":"","length":"","text":""}]}'
     )
     picks = "\n".join(f"- 策略：{p['strategy']}；理由：{p['reason']}" for p in plan["picks"])
@@ -161,6 +184,7 @@ def revise_prompt(resolved: dict, candidates: list, failures: dict, brand=None) 
         f"{_house(brand)}\n{DATA_NOTE}\n"
         "任务：只重写下面列出的未通过检查的消息，保持各条策略不同，序号保持原样。\n"
         f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
+        f"重写后仍要像微信里随手写的话。{_voice_line()}"
         '只输出如下格式，只含需要重写的序号：'
         '{"candidates":[{"index":' + str(first) + ',"strategy":"","reason":"","tone":"","length":"","text":""}]}'
     )
@@ -191,6 +215,9 @@ def judge_prompt(resolved: dict, candidates: list, expectations, brand=None) -> 
         f"你是奢侈品牌澄白（Chengbai）微信消息的评审。{DATA_NOTE}\n品牌声音：{brand.voice}\n"
         f"对每条消息逐项评分。通过或不通过的项：{'、'.join(JUDGE_FACT_ITEMS)}（value 填 1 或 0）。\n"
         f"一至五分的项：{'、'.join(JUDGE_SCORE_ITEMS)}。\n"
+        "各项打分都要更加严格，尤其是中文。拿不准就往低了打。\n"
+        "称呼：不必照抄档案里的那一个词。正式用您可以高分。熟络没有固定称呼，您、你、亲、亲爱的，或直接叫名字，只要自然就给高分，不要因为没用某一个词而扣分。\n"
+        "中文：必须像完完全全的中文母语者在微信里写的。翻译腔、公文腔、每句一个架子，都要低分。波浪号和少量表情可以，不要因此扣分。\n"
         '只输出如下格式：{"scores":[{"candidate":0,"item":"","value":0,"reason":""}]}'
     )
     if isinstance(expectations, dict):
@@ -204,6 +231,43 @@ def judge_prompt(resolved: dict, candidates: list, expectations, brand=None) -> 
         wants = "\n".join(f"- {quote_data(e)}" for e in expectations)
     user = f"{_case_body(resolved, brand)}\n期望：\n{wants}\n待评消息：\n{_candidate_lines(candidates)}"
     return system, user
+
+
+def managed_prompts(brand=None) -> list[dict]:
+    brand = brand or _default_brand()
+    resolved = {
+        "client": {
+            "name": "林",
+            "tier": "常客",
+            "relationship": "熟",
+            "address": "您",
+            "birthday": "03-15",
+            "preferences": "素色",
+            "purchases": [],
+        },
+        "scenario": "2 Product recommendation",
+        "history": [],
+        "products": [],
+        "event": None,
+    }
+    menu = brand.menus[resolved["scenario"]][:3]
+    candidates = [{"strategy": menu[0], "reason": "合她的情况", "tone": "亲切温暖", "length": "简短", "text": "你好"}]
+    systems = {
+        "ca/draft": draft_prompt(resolved, menu, brand)[0],
+        "ca/revise": revise_prompt(resolved, candidates, {0: ["长度"]}, brand)[0],
+        "ca/judge": judge_prompt(resolved, candidates, [], brand)[0],
+        "ca/chat": chat_prompt("你好")[0],
+    }
+    users = {
+        "ca/draft": "{{case}}\n策略菜单：\n{{menu}}\n{{preference}}",
+        "ca/revise": "{{case}}\n需要重写的消息：\n{{messages}}\n未通过的序号与问题：\n{{problems}}\n{{preference}}",
+        "ca/judge": "{{case}}\n期望：\n{{expectations}}\n待评消息：\n{{messages}}",
+        "ca/chat": "顾问的话：{{request}}",
+    }
+    return [
+        {"name": name, "prompt": [{"role": "system", "content": systems[name]}, {"role": "user", "content": users[name]}]}
+        for name in ("ca/draft", "ca/revise", "ca/judge", "ca/chat")
+    ]
 
 
 def natural_language_is_chinese(prompt: str, allowed_names: list[str]) -> bool:

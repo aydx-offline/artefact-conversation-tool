@@ -250,7 +250,7 @@ class CliTest(unittest.TestCase):
 
         env = {"GLM_API_KEY": "key", "WRITER_MODEL": "writer", "JUDGE_MODEL": "judge"}
         writer, judge = _models(env, None, None)
-        self.assertEqual((writer.timeout, judge.timeout, _workers(env)), (180, 180, 2))
+        self.assertEqual((writer.timeout, judge.timeout, _workers(env)), (60, 60, 2))
 
         configured = {**env, "GLM_TIMEOUT": "45", "CA_WORKERS": "3"}
         writer, judge = _models(configured, None, None)

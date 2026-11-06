@@ -78,6 +78,16 @@ class JudgeTests(unittest.TestCase):
         self.assertTrue(all(row["judge_version"] == JUDGE_VERSION for row in rows))
         self.assertIn("祝福生日", model.calls[0][1])
 
+    def test_evaluate_case_keeps_the_judge_call(self):
+        from ca.llm import Reply
+
+        raw = Reply(json.dumps({"scores": judge_scores()}, ensure_ascii=False), {"input": 1, "output": 1, "total": 2}, 15)
+        rows = evaluate_case(case_file(), FakeModel([raw]), BRAND)
+        self.assertEqual(rows.call["usage"]["total"], 2)
+        self.assertEqual(rows.call["latency_ms"], 15)
+        self.assertIn("林女士", rows.call["prompt"])
+        self.assertIn("scores", rows.call["raw"])
+
     def test_each_evaluation_gets_a_fresh_id(self):
         reply = json.dumps({"scores": judge_scores()}, ensure_ascii=False)
         first = evaluate_case(case_file(), FakeModel([reply]), BRAND)[0]["evaluation_id"]

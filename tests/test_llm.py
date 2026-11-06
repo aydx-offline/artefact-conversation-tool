@@ -1,14 +1,17 @@
 import io
+import json
 import unittest
 import urllib.error
 from unittest.mock import MagicMock, patch
 
+from ca.cli import _models
 from ca.llm import (
     FakeModel,
     GlmModel,
     build_body,
     complete_with_retries,
     parse_reply,
+    parse_usage,
     require_models,
 )
 
@@ -101,9 +104,53 @@ class GlmTests(unittest.TestCase):
             },
         )
 
+    def test_thinking_disabled_is_sent(self):
+        body = build_body("m", "sys", "usr", thinking=False)
+        self.assertEqual(body["thinking"], {"type": "disabled"})
+
+    def test_complete_sends_disabled_thinking(self):
+        model = GlmModel(KEY, "https://example.invalid/v1", "m", thinking=False)
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"choices":[{"message":{"content":"ok"}}]}'
+        )
+        with patch("urllib.request.urlopen", return_value=response) as urlopen:
+            model.complete("s", "u")
+        sent = json.loads(urlopen.call_args.args[0].data)
+        self.assertEqual(sent["thinking"], {"type": "disabled"})
+
+    def test_writer_disables_thinking_and_judge_keeps_it(self):
+        writer, judge = _models(ENV, None, None)
+        self.assertIs(writer.thinking, False)
+        self.assertIs(judge.thinking, True)
+        self.assertEqual(build_body("m", "s", "u", thinking=True)["thinking"], {"type": "enabled"})
+
     def test_parse_reply(self):
         raw = '{"choices":[{"message":{"content":"你好"}}]}'
         self.assertEqual(parse_reply(raw), "你好")
+
+    def test_parse_usage_reads_tokens_and_cost(self):
+        payload = {
+            "usage": {
+                "prompt_tokens": 3,
+                "completion_tokens": 5,
+                "total_tokens": 8,
+                "input_cost": 0.1,
+                "output_cost": 0.2,
+                "total_cost": 0.3,
+            }
+        }
+        self.assertEqual(
+            parse_usage(payload),
+            {
+                "input": 3,
+                "output": 5,
+                "total": 8,
+                "input_cost": 0.1,
+                "output_cost": 0.2,
+                "total_cost": 0.3,
+            },
+        )
 
     def test_repr_and_str_hide_key(self):
         model = GlmModel(KEY, "https://example.invalid/v1", "m")
@@ -119,6 +166,22 @@ class GlmTests(unittest.TestCase):
         with patch("urllib.request.urlopen", return_value=response) as urlopen:
             self.assertEqual(model.complete("s", "u"), "ok")
         self.assertEqual(urlopen.call_args.kwargs["timeout"], 23)
+
+    def test_complete_returns_usage_and_latency(self):
+        model = GlmModel(KEY, "https://example.invalid/v1", "m")
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {
+                "choices": [{"message": {"content": "你好"}}],
+                "usage": {"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3, "total_cost": 0.01},
+            }
+        ).encode()
+        with patch("urllib.request.urlopen", return_value=response):
+            reply = model.complete("s", "u")
+        self.assertEqual(reply, "你好")
+        self.assertEqual(reply.usage["input"], 2)
+        self.assertEqual(reply.usage["total_cost"], 0.01)
+        self.assertGreaterEqual(reply.latency_ms, 0)
 
     def test_http_error_includes_body_without_key(self):
         error = urllib.error.HTTPError(

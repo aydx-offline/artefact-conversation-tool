@@ -473,7 +473,7 @@ class GateModel:
         self.count = 0
 
     def complete(self, system, user):
-        if '"picks"' in system:
+        if "三个互不相同的策略" in system:
             with self.lock:
                 self.count += 1
                 if self.count == 2:

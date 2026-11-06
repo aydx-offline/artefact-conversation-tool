@@ -6,6 +6,7 @@ from ca.prompts import (
     SCENARIO_ZH,
     chat_prompt,
     judge_prompt,
+    managed_prompts,
     natural_language_is_chinese,
     plan_prompt,
     quote_data,
@@ -180,6 +181,25 @@ class PromptTest(unittest.TestCase):
         system, _ = judge_prompt(RESOLVED, CANDIDATES, EXPECT)
         for item in ("事实", "期望", "场景", "称呼", "具体", "中文", "品牌", "不催"):
             self.assertIn(item, system)
+        self.assertIn("亲爱的", system)
+        self.assertIn("没有固定称呼", system)
+        self.assertIn("中文母语者", system)
+        self.assertIn("各项打分都要更加严格", system)
+        self.assertIn("尤其是中文", system)
+
+    def test_managed_prompts_keep_the_judge_rule(self):
+        prompts = {item["name"]: item["prompt"] for item in managed_prompts(BRAND)}
+        self.assertEqual(set(prompts), {"ca/draft", "ca/revise", "ca/judge", "ca/chat"})
+        judge = prompts["ca/judge"]
+        self.assertEqual(judge[0]["role"], "system")
+        self.assertIn("各项打分都要更加严格", judge[0]["content"])
+        self.assertIn("{{expectations}}", judge[1]["content"])
+
+    def test_writer_asks_for_native_wechat(self):
+        system, _ = write_prompt(RESOLVED, PLAN)
+        self.assertIn("中文母语者", system)
+        self.assertIn("亲爱的", system)
+        self.assertIn("没有固定称呼", system)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,10 @@ from ca.prompts import JUDGE_FACT_ITEMS, JUDGE_SCORE_ITEMS, judge_prompt
 from ca.version import JUDGE_VERSION
 
 
+class ScoreRows(list):
+    call = None
+
+
 class JudgeError(ValueError):
     def __init__(self, message, raw):
         super().__init__(message)
@@ -69,7 +73,18 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
         brand,
     )
     raw = complete_with_retries(model, *prompt, time.sleep)
-    scores = _validated_scores(raw)
+    call = {
+        "prompt": "\n".join(prompt),
+        "raw": raw,
+        "usage": getattr(raw, "usage", None),
+        "latency_ms": getattr(raw, "latency_ms", None),
+        "model": getattr(model, "model_name", None),
+    }
+    try:
+        scores = _validated_scores(raw)
+    except JudgeError as error:
+        error.call = call
+        raise
 
     current_evaluation_id = evaluation_id()
     common = {
@@ -78,7 +93,7 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
         "judge_version": JUDGE_VERSION,
         "case_id": case_id,
     }
-    rows = [
+    rows = ScoreRows(
         {
             **common,
             "candidate": row.get("candidate"),
@@ -87,7 +102,7 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
             "reason": row.get("reason", ""),
         }
         for row in scores
-    ]
+    )
     rows.extend(
         {
             **common,
@@ -98,6 +113,7 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
         }
         for check in case_file.get("checks", [])
     )
+    rows.call = call
     return rows
 
 

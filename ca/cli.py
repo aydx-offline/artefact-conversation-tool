@@ -15,7 +15,7 @@ from ca.llm import GlmModel, require_models
 from ca.pipeline import generate
 from ca.schema import load_case
 from ca.store import RunStore, test_set_version
-from ca.telemetry import open_telemetry
+from ca.telemetry import open_telemetry, publish_prompts
 from ca.version import GENERATOR_VERSION, JUDGE_VERSION
 
 DEFAULT_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
@@ -148,10 +148,10 @@ def _models(env, model, judge_model):
         return model, judge_model
     writer_name, judge_name = require_models(env)
     url = env.get("GLM_BASE_URL") or DEFAULT_BASE_URL
-    timeout = _positive_int(env, "GLM_TIMEOUT", 180)
+    timeout = _positive_int(env, "GLM_TIMEOUT", 60)
     return (
-        GlmModel(env["GLM_API_KEY"], url, writer_name, timeout),
-        GlmModel(env["GLM_API_KEY"], url, judge_name, timeout),
+        GlmModel(env["GLM_API_KEY"], url, writer_name, timeout, thinking=False),
+        GlmModel(env["GLM_API_KEY"], url, judge_name, timeout, thinking=True),
     )
 
 
@@ -167,6 +167,24 @@ def _positive_int(env, name, default):
 
 def _workers(env):
     return _positive_int(env, "CA_WORKERS", 2)
+
+
+def _publish(telemetry, brand):
+    if telemetry.client is None:
+        return
+    try:
+        publish_prompts(telemetry.client, brand)
+    except Exception as error:
+        print(f"Langfuse prompts: {error}")
+
+
+def _record_cases(telemetry, store, run_id, cases, writer_model=None):
+    for case in cases:
+        path = store.run_dir(run_id) / "cases" / f"{case.case_id}.json"
+        if not path.exists():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        telemetry.record_case_file(data, run_id, writer_model=writer_model)
 
 
 def _finish(store, run_id, statuses):
@@ -237,9 +255,10 @@ def _generate_command(args, root, env, model):
     store = RunStore(root / "runs")
     run_id = store.begin(_manifest_start(root, [case], Path(args.case), getattr(writer, "model_name", type(writer).__name__)))
     telemetry = open_telemetry(env)
+    _publish(telemetry, brand)
     status = _generate_one(case, writer, brand, clients, store, run_id)
     _finish(store, run_id, {case.case_id: status})
-    telemetry.trace_case(case.case_id, input=asdict(case))
+    _record_cases(telemetry, store, run_id, [case], getattr(writer, "model_name", None))
     telemetry.flush()
     case_data = json.loads((store.run_dir(run_id) / "cases" / f"{case.case_id}.json").read_text(encoding="utf-8"))
     for candidate in case_data["candidates"]:
@@ -262,6 +281,7 @@ def _batch_command(args, root, env, model):
     store = RunStore(root / "runs")
     run_id = store.begin(_manifest_start(root, cases, source, getattr(writer, "model_name", type(writer).__name__)))
     telemetry = open_telemetry(env)
+    _publish(telemetry, brand)
     statuses = run_cases(
         cases,
         writer,
@@ -273,6 +293,7 @@ def _batch_command(args, root, env, model):
         workers=_workers(env),
     )
     _finish(store, run_id, statuses)
+    _record_cases(telemetry, store, run_id, cases, getattr(writer, "model_name", None))
     telemetry.flush()
     print(store.run_dir(run_id))
     return int(any(status == "failed" for status in statuses.values()))
@@ -285,6 +306,7 @@ def _evaluate_command(args, root, env, judge_model):
     brand = load_brand(root / "data" / "brand")
     store = RunStore(root / "runs", run_dir.parent.name)
     telemetry = open_telemetry(env)
+    _publish(telemetry, brand)
     for case_id in manifest["case_ids"]:
         path = run_dir / "cases" / f"{case_id}.json"
         if not path.exists():
@@ -293,8 +315,10 @@ def _evaluate_command(args, root, env, judge_model):
         if case_file.get("status") == "failed" or len(case_file.get("candidates", [])) < 3:
             print(case_id, "skipped")
             continue
+        judge_call = None
         try:
             rows = evaluate_case(case_file, judge, brand)
+            judge_call = getattr(rows, "call", None)
         except Exception as error:
             row = {
                 "evaluation_id": evaluation_id(),
@@ -306,9 +330,17 @@ def _evaluate_command(args, root, env, judge_model):
             }
             if hasattr(error, "raw"):
                 row["raw"] = error.raw
+            judge_call = getattr(error, "call", None)
             rows = [row]
         for row in rows:
             store.append(args.run, "scores.jsonl", row)
+        telemetry.record_case_file(
+            case_file,
+            args.run,
+            scores=rows,
+            writer_model=manifest.get("writer_model"),
+            judge_call=judge_call,
+        )
     telemetry.flush()
     return 0
 

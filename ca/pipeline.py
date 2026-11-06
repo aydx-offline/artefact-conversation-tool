@@ -5,8 +5,8 @@ from dataclasses import asdict, dataclass, field, is_dataclass
 from ca.checks import check_candidates
 from ca.clients import ALLOWED_NAMES
 from ca.context import resolve_context
-from ca.llm import complete_with_retries, parse_json
-from ca.prompts import plan_prompt, revise_prompt, write_prompt
+from ca.llm import combine_calls, complete_with_retries, parse_json
+from ca.prompts import draft_prompt, revise_prompt
 from ca.schema import CaseError, validate_case
 
 CHECK_ZH = {
@@ -33,6 +33,8 @@ class Step:
     name: str
     prompt: str = ""
     raw: str = ""
+    usage: dict | None = None
+    latency_ms: int | None = None
 
 
 @dataclass
@@ -52,17 +54,11 @@ def _candidate_list(raw):
     return [i for i in items if isinstance(i, dict) and all(isinstance(i.get(k), str) for k in CANDIDATE_KEYS)]
 
 
-def _picks(raw, menu):
-    data = parse_json(raw)
-    picks = data.get("picks") if isinstance(data, dict) else None
-    if not isinstance(picks, list) or len(picks) != 3 or not all(isinstance(p, dict) for p in picks):
-        return None
-    strategies = [p.get("strategy") for p in picks]
-    if len(set(strategies)) != 3 or any(s not in menu for s in strategies):
-        return None
-    if not all(isinstance(p.get("reason"), str) for p in picks):
-        return None
-    return {"picks": picks}
+def _ready(candidates, menu):
+    if len(candidates) != 3:
+        return False
+    strategies = [item["strategy"] for item in candidates]
+    return len(set(strategies)) == 3 and all(item in menu for item in strategies)
 
 
 def _products(case, client, brand):
@@ -146,23 +142,16 @@ def generate(case, model, brand, clients, recorder, sleep=time.sleep):
     record(Step("select"))
 
     try:
-        prompt = plan_prompt(resolved, menu, brand)
-        raws, plan = [], None
+        prompt = draft_prompt(resolved, menu, brand)
+        raws, candidates = [], []
         for _ in range(2):
             raws.append(call(prompt))
-            plan = _picks(raws[-1], menu)
-            if plan:
+            candidates = _candidate_list(raws[-1])
+            if _ready(candidates, menu):
                 break
-        record(Step("plan", "\n".join(prompt), "\n---\n".join(raws)))
-        if not plan:
-            return finish("failed")
-
-        prompt = write_prompt(resolved, plan, brand)
-        raw = call(prompt)
-        record(Step("write", "\n".join(prompt), raw))
-        candidates = _candidate_list(raw)
+        record(Step("write", "\n".join(prompt), "\n---\n".join(raws), *combine_calls(raws)))
         if len(candidates) != 3:
-            candidates = [{"strategy": p["strategy"], "reason": p["reason"], "tone": "", "length": "", "text": ""} for p in plan["picks"]]
+            candidates = [{"strategy": "", "reason": "", "tone": "", "length": "", "text": ""} for _ in range(3)]
 
         owned = [p["product_id"] for p in resolved["client"].get("purchases", [])]
         product_ids = [p["id"] for p in resolved["products"]]
@@ -177,7 +166,7 @@ def generate(case, model, brand, clients, recorder, sleep=time.sleep):
             failures = _failures(checks)
             prompt = revise_prompt(resolved, candidates, failures, brand)
             raw = call(prompt)
-            record(Step("revise", "\n".join(prompt), raw))
+            record(Step("revise", "\n".join(prompt), raw, *combine_calls([raw])))
             for item in _candidate_list(raw):
                 try:
                     index = int(item.get("index"))
