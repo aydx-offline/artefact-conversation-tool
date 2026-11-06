@@ -1,7 +1,5 @@
 import hashlib
 import json
-import os
-import tempfile
 from pathlib import Path
 
 from ca.schema import CaseError, prose_is_chinese
@@ -30,22 +28,6 @@ def load_clients(path):
     for client in clients.values():
         _check(client)
     return clients
-
-
-def save_client(path, client):
-    _check(client)
-    clients = load_clients(path)
-    clients[client["id"]] = client
-    path = Path(path)
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as file:
-            temporary = Path(file.name)
-            file.write(_canonical(clients))
-        os.replace(temporary, path)
-    finally:
-        if temporary:
-            temporary.unlink(missing_ok=True)
 
 
 def store_hash(path):

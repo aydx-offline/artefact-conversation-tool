@@ -102,7 +102,10 @@ class CliTest(unittest.TestCase):
         with export.open(encoding="utf-8", newline="") as file:
             rows = list(csv.DictReader(file))
         self.assertEqual(len(rows), 1)
-        self.assertIn("林女士", rows[0]["Client information"])
+        self.assertIn("姓名：林女士", rows[0]["Client information"])
+        self.assertIn("等级：常客", rows[0]["Client information"])
+        self.assertIn("购买记录：素缎围巾（2026-03-02，米白，", rows[0]["Client information"])
+        self.assertNotIn("「", rows[0]["Client information"])
         self.assertIn("顾客：祝您中秋快乐", rows[0]["Conversation history"])
         self.assertNotIn("client", rows[0]["Conversation history"])
         self.assertEqual(rows[0]["Generator version"], GENERATOR_VERSION)
@@ -117,7 +120,7 @@ class CliTest(unittest.TestCase):
         main(["generate", "--case", str(self.case_path)], model=FakeModel([plan(), write()]), root=self.root)
         run_id = self.run_id()
         raw = "不是有效评分"
-        self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([raw, raw]), root=self.root), 0)
+        self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([raw, raw, raw]), root=self.root), 0)
         rows = [
             json.loads(line)
             for line in (self.root / "runs" / GENERATOR_VERSION / run_id / "scores.jsonl").read_text(encoding="utf-8").splitlines()
@@ -197,6 +200,46 @@ class CliTest(unittest.TestCase):
         self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([judge_reply()]), root=self.root), 0)
         self.assertTrue((previous / run_id / "scores.jsonl").exists())
         self.assertFalse((current / run_id / "scores.jsonl").exists())
+
+    def test_export_labels_client_and_product_cells(self):
+        from ca.cli import main
+
+        run_id = self._stored_status_run([("a", "done", TEXTS)])
+        path = self.root / "runs" / GENERATOR_VERSION / run_id / "cases" / "a.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        scarf = next(p for p in BRAND.catalog if p["id"] == "scarf")
+        data["resolved"] = {"client": load_clients(ROOT / "data" / "clients.json")["lin"], "history": [], "products": [scarf], "today": "2026-11-06"}
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        main(["export", "--run", run_id], root=self.root)
+        with (self.root / "cases" / "cases.csv").open(encoding="utf-8", newline="") as file:
+            row = next(csv.DictReader(file))
+        self.assertIn("姓名：林女士；等级：常客；关系：熟", row["Client information"])
+        self.assertIn("上次到店：2026-03-02（8个月前）", row["Client information"])
+        self.assertIn("产品：素缎围巾；系列：素缎系列；价格：12800元", row["Product information"])
+        self.assertIn("颜色：", row["Product information"])
+        self.assertNotIn("scarf", row["Client information"] + row["Product information"])
+
+    def test_report_summarises_good_cases_items_and_problems(self):
+        from ca.cli import main
+
+        run_id = self._stored_status_run([("a", "done", TEXTS), ("b", "done", TEXTS), ("c", "failed", [])])
+        store = RunStore(self.root / "runs")
+        for case_id, bad in (("a", False), ("b", True)):
+            for row in json.loads(judge_reply())["scores"]:
+                if bad and row["candidate"] == 1 and row["item"] == "事实":
+                    row = {**row, "value": "fail", "reason": "编造新品"}
+                store.append(run_id, "scores.jsonl", {"case_id": case_id, "evaluation_id": "e1", "judge_version": "j", **row})
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(main(["report", "--run", run_id], root=self.root), 0)
+        text = output.getvalue()
+        self.assertIn("good: 1 of 2 judged cases", text)
+        self.assertIn("not judged: c", text)
+        self.assertIn(f"{SCENARIO}: 1 / 2", text)
+        self.assertIn("事实 0.83", text)
+        self.assertIn("场景 3.00", text)
+        self.assertIn("b 1 事实 fail: 编造新品", text)
+        self.assertNotIn("a 1 事实", text)
 
     def test_export_refuses_tuning_but_exports_incomplete_run(self):
         from ca.cli import main
@@ -360,7 +403,7 @@ class CliTest(unittest.TestCase):
                 case_id,
                 {
                     "case": {**self.case, "case_id": case_id},
-                    "resolved": {"client": {"name": "林女士"}, "history": [], "products": []},
+                    "resolved": {"client": load_clients(ROOT / "data" / "clients.json")["lin"], "history": [], "products": []},
                     "candidates": [{"text": text} for text in candidate_texts],
                     "status": "done",
                 },
@@ -386,7 +429,7 @@ class CliTest(unittest.TestCase):
                 case_id,
                 {
                     "case": {**self.case, "case_id": case_id},
-                    "resolved": {"client": {"name": "林女士"}, "history": [], "products": []},
+                    "resolved": {"client": load_clients(ROOT / "data" / "clients.json")["lin"], "history": [], "products": []},
                     "candidates": [{"text": text} for text in texts],
                     "checks": [],
                     "status": status,

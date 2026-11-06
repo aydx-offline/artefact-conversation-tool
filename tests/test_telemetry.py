@@ -142,8 +142,9 @@ class TelemetryTests(unittest.TestCase):
                 self.id = "span-1"
                 self.ended = False
 
-            def end(self):
+            def end(self, end_time=None):
                 self.ended = True
+                self.end_time = end_time
 
         class Client:
             def __init__(self):
@@ -212,6 +213,76 @@ class TelemetryTests(unittest.TestCase):
         self.assertTrue(root.ended)
         self.assertIsNone(Telemetry(None).record_case_file({}, "run-1"))
 
+    def _case_with_two_calls(self):
+        return {
+            "case": {"case_id": "t04", "scenario": "2 Product recommendation"},
+            "resolved": {},
+            "status": "done",
+            "candidates": [],
+            "steps": [{"name": "write", "prompt": "写", "raw": "三条", "usage": {"input": 8, "output": 6, "total": 14}, "latency_ms": 800}],
+            "checks": [],
+        }
+
+    def _client(self):
+        class Observation:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+                self.trace_id = "trace-1"
+                self.id = "span-1"
+                self.end_time = None
+
+            def end(self, end_time=None):
+                self.end_time = end_time
+
+        class Client:
+            def __init__(self):
+                self.observations = []
+
+            def start_observation(self, **kwargs):
+                self.observations.append(Observation(**kwargs))
+                return self.observations[-1]
+
+            def create_score(self, **kwargs):
+                pass
+
+        return Client()
+
+    def test_every_model_call_gets_tokens_latency_and_a_priced_cost(self):
+        client = self._client()
+        judge = {"prompt": "评", "raw": "{}", "usage": {"input": 3, "output": 2, "total": 5}, "latency_ms": 400, "model": "GLM-5.3"}
+        prices = {"glm-5.3-flash": (1_000_000, 2_000_000), "glm-5.3": (3_000_000, 4_000_000)}
+        with patch("ca.telemetry.time.time_ns", return_value=1_000_000_000):
+            Telemetry(client, prices).record_case_file(self._case_with_two_calls(), "r1", writer_model="glm-5.3-flash", judge_call=judge)
+        root, write, judged = client.observations
+        self.assertEqual(write.kwargs["usage_details"], {"input": 8, "output": 6, "total": 14})
+        self.assertEqual(write.kwargs["cost_details"], {"input": 8.0, "output": 12.0, "total": 20.0})
+        self.assertEqual(write.end_time, 1_000_000_000 + 800 * 1_000_000)
+        self.assertEqual(judged.kwargs["cost_details"], {"input": 9.0, "output": 8.0, "total": 17.0})
+        self.assertEqual(judged.end_time, 1_000_000_000 + 400 * 1_000_000)
+        self.assertEqual(root.kwargs["metadata"]["cost"], 37.0)
+        self.assertEqual(root.kwargs["metadata"]["usage"]["total"], 19)
+
+    def test_no_price_and_no_reported_cost_sends_no_cost(self):
+        client = self._client()
+        Telemetry(client).record_case_file(self._case_with_two_calls(), "r1")
+        self.assertIsNone(client.observations[1].kwargs["cost_details"])
+        self.assertIsNone(client.observations[0].kwargs["metadata"]["cost"])
+        self.assertEqual(client.observations[1].kwargs["usage_details"]["total"], 14)
+
+    def test_prices_come_from_the_glm_registry(self):
+        from ca.telemetry import load_prices
+
+        prices = load_prices()
+        self.assertEqual(prices["glm-5.3"], (1.4, 4.4))
+        self.assertEqual(prices["glm-5.3-flash"], (0.15, 0.5))
+        with patch("ca.telemetry._langfuse_client", return_value=self._client()):
+            self.assertEqual(open_telemetry({"LANGFUSE_PUBLIC_KEY": "p", "LANGFUSE_SECRET_KEY": "s"}).prices, prices)
+
+    def test_a_model_missing_from_the_registry_gets_no_cost(self):
+        client = self._client()
+        Telemetry(client, {"glm-5.3": (1.4, 4.4)}).record_case_file(self._case_with_two_calls(), "r1", writer_model="other-model")
+        self.assertIsNone(client.observations[1].kwargs["cost_details"])
+
     def test_publish_prompts_creates_a_version_only_when_the_text_changes(self):
         class Stored:
             def __init__(self, prompt):
@@ -235,7 +306,7 @@ class TelemetryTests(unittest.TestCase):
         client = Client()
         first = publish_prompts(client, brand)
         second = publish_prompts(client, brand)
-        self.assertEqual(first, ["ca/draft", "ca/revise", "ca/judge", "ca/chat"])
+        self.assertEqual(first, ["ca/draft", "ca/revise", "ca/judge"])
         self.assertEqual(second, [])
         self.assertEqual(client.created, first)
         self.assertEqual(publish_prompts(None, brand), [])

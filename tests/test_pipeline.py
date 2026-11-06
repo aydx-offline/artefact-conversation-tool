@@ -14,7 +14,7 @@ BRAND = load_brand(ROOT / "data" / "brand")
 SCENARIO = "1 Birthday and festive greetings"
 MENU = BRAND.menus[SCENARIO]
 TEXTS = ["林女士，生日快乐，祝您今天一切顺心。", "上次的围巾还合用吗？有空来店里喝杯茶。", "最近天气转凉，记得添件衣裳。"]
-NEW_TEXTS = ["林女士，愿您今天被喜欢的人和事围绕。", "秋意渐浓，店里新到了一些茶，等您来尝。"]
+NEW_TEXTS = ["林女士，愿您今天被喜欢的人和事围绕。", "秋意渐浓，店里备了些茶，等您来尝。"]
 
 
 def clients():
@@ -98,6 +98,17 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.status, "done")
         self.assertEqual(len(model.calls), 1)
         self.assertEqual([c["length"] for c in result.candidates], ["", "", ""])
+
+    def test_a_strategy_copied_with_its_labels_is_cut_back_to_the_menu_item(self):
+        items = [{**candidate(i, t), "strategy": f"{MENU[i]}；语气：亲切温暖；长度：简短"} for i, t in enumerate(TEXTS)]
+        _, result = run([json.dumps({"candidates": items}, ensure_ascii=False)])
+        self.assertEqual([c["strategy"] for c in result.candidates], MENU[:3])
+        self.assertEqual(result.status, "done")
+
+    def test_tildes_are_stripped_in_code(self):
+        texts = [t.replace("。", "～") for t in TEXTS]
+        _, result = run([write(texts)])
+        self.assertEqual([c["text"] for c in result.candidates], [t.replace("。", "") for t in TEXTS])
 
     def test_revise_rewrites_only_failing_candidates(self):
         model, result = run([write([TEXTS[0]] * 3), fenced(revise([(1, NEW_TEXTS[0]), (2, NEW_TEXTS[1])]))])
@@ -193,7 +204,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result.resolved["days_since_purchase"], 247)
         self.assertEqual(result.resolved["today"], "2026-11-04")
         self.assertIsNone(result.resolved["next_festival"])
-        self.assertIsNotNone(result.resolved["days_to_birthday"])
+        self.assertIn("不要提生日", result.resolved["birthday_note"])
 
 
 if __name__ == "__main__":

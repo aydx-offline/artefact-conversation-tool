@@ -23,7 +23,9 @@ class BrandTest(unittest.TestCase):
         self.assertEqual(rules["allowed_english"], ["Chengbai"])
         self.assertEqual(rules["lengths"], {"简短": [1, 50], "适中": [51, 130], "max": 180})
         self.assertIn("%", rules["offer_patterns"])
-        for word in ("最后机会", "仅此一天", "马上涨价", "限时"):
+        for key in ("newness", "price_holds", "gestures"):
+            self.assertTrue(rules[key], key)
+        for word in ("最后机会", "仅此一天", "马上涨价", "限时", "终身", "永久", "每年免费"):
             self.assertIn(word, rules["forbidden"])
 
     def test_chinese_prose(self):

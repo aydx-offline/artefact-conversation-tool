@@ -72,7 +72,7 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
         case.get("expectations") or [],
         brand,
     )
-    for attempt in range(2):
+    for attempt in range(3):
         raw = complete_with_retries(model, *prompt, time.sleep)
         call = {
             "prompt": "\n".join(prompt),
@@ -86,7 +86,7 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
             break
         except JudgeError as error:
             error.call = call
-            if attempt == 1:
+            if attempt == 2:
                 raise
 
     current_evaluation_id = evaluation_id()

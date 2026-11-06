@@ -28,9 +28,14 @@ def overlap(a, b):
     return len(a & b) / min(len(a), len(b)) if a and b else 0.0
 
 
-def chinese_ratio(text, allowed_names):
+def without_names(text, allowed_names):
     for name in allowed_names:
         text = text.replace(name, "")
+    return text
+
+
+def chinese_ratio(text, allowed_names):
+    text = without_names(text, allowed_names)
     cjk, latin = len(CJK.findall(text)), len(LATIN.findall(text))
     return cjk / (cjk + latin) if cjk + latin else 0.0
 
@@ -71,7 +76,11 @@ def check_candidates(candidates, brand, scenario, product_ids, owned_ids, event)
 
     return [
         Check("count", len(texts) == 3 and not blank, count_reason, blank),
-        flagged("chinese", texts, lambda t: chinese_ratio(t, rules["allowed_english"]) < rules.get("chinese_ratio", CHINESE_RATIO)),
+        flagged(
+            "chinese",
+            texts,
+            lambda t: LATIN.search(without_names(t, rules["allowed_english"])) or chinese_ratio(t, rules["allowed_english"]) < rules.get("chinese_ratio", CHINESE_RATIO),
+        ),
         Check("length", not bad_length, f"candidates {bad_length}" if bad_length else "", bad_length),
         Check("overlap", not close, f"pairs {pairs}" if close else "", close),
         Check("menu", not bad_menu, f"candidates {bad_menu}" if bad_menu else "", bad_menu),
@@ -80,4 +89,11 @@ def check_candidates(candidates, brand, scenario, product_ids, owned_ids, event)
         flagged("offer", texts, lambda t: has_offer(t, rules["offer_patterns"])),
         flagged("product", texts, lambda t: any(n in t for n in outside)),
         flagged("capacity", texts, lambda t: not has_capacity and any(w in t for w in CAPACITY_WORDS)),
+        flagged("newness", texts, lambda t: any(re.search(p, t) for p in rules["newness"])),
+        flagged(
+            "discount_reply",
+            texts,
+            lambda t: scenario == "6 Price objection — discount request"
+            and not (any(w in t for w in rules["price_holds"]) and any(w in t for w in rules["gestures"])),
+        ),
     ]

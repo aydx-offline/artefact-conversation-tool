@@ -7,7 +7,7 @@ from pathlib import Path
 from ca.clients import _canonical
 from ca.version import GENERATOR_VERSION
 
-APPEND_FILES = {"events.jsonl", "scores.jsonl", "feedback.jsonl"}
+APPEND_FILES = {"events.jsonl", "scores.jsonl"}
 
 
 def _run_id(instant):

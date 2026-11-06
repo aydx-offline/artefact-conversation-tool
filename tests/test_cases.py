@@ -118,7 +118,16 @@ class CaseFilesTest(unittest.TestCase):
         self.assertEqual(final["f14"]["occasion"], "七夕")
         self.assertEqual(final["f21"]["occasion"], "中秋")
 
-    def test_non_greeting_cases_do_not_resolve_birthdays(self):
+    def test_gesture_cases_state_the_one_off_rule(self):
+        final = {row["case_id"]: row for row in self.rows["final"]}
+        for case_id in ("f18", "f37", "f46", "f47", "f48", "f49", "f50"):
+            must_not = final[case_id]["expectations"]["must_not"]
+            self.assertIn("终身", must_not, case_id)
+        for case_id in ("f46", "f47", "f48", "f49", "f50"):
+            self.assertIn("降价", final[case_id]["expectations"]["must_not"], case_id)
+            self.assertIn("一次", final[case_id]["expectations"]["must"], case_id)
+
+    def test_only_f21_is_inside_a_birthday_window_outside_scenario_1(self):
         for rows in self.rows.values():
             for row in rows:
                 if row["scenario"] == "1 Birthday and festive greetings":
@@ -129,7 +138,7 @@ class CaseFilesTest(unittest.TestCase):
                     self.festivals,
                     "",
                 )
-                self.assertFalse(context.birthday, row["case_id"])
+                self.assertEqual(context.birthday, row["case_id"] == "f21", row["case_id"])
 
     def test_owned_products_reactivation_age_and_safe_ca_messages(self):
         coverage = {

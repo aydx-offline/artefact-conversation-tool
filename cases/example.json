@@ -1,0 +1,10 @@
+{
+  "case_id": "example-1",
+  "client_id": "lin",
+  "scenario": "6 Price objection — price too high",
+  "timestamp": "2026-11-06T10:00:00+08:00",
+  "history": [
+    {"sender": "client", "text": "这条素缎围巾很好看，就是有点贵，我再想想。", "time": "2026-11-06T09:50:00+08:00"}
+  ],
+  "product_ids": ["scarf"]
+}

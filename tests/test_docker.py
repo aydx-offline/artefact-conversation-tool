@@ -5,23 +5,24 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DockerTest(unittest.TestCase):
-    def test_image_contains_runtime_files_and_web_command(self):
+    def test_image_contains_runtime_files_and_the_command_line_tool(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("python:3.12-slim", dockerfile)
         self.assertIn("COPY ca ca", dockerfile)
-        for path in ("web", "data", "cases", "requirements.txt"):
+        for path in ("data", "cases", "requirements.txt"):
             self.assertIn(path, dockerfile)
-        self.assertIn("ENV CA_WEB_HOST=0.0.0.0", dockerfile)
-        self.assertIn('CMD ["python", "-m", "ca.web"]', dockerfile)
+        self.assertNotIn("web", dockerfile)
+        self.assertIn('CMD ["python", "-m", "ca", "--help"]', dockerfile)
 
     def test_readme_contains_exact_build_and_run_commands(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("docker build -t ca-messages .", readme)
         self.assertIn(
-            'docker run --env-file .env -p 8765:8765 -v "$PWD/runs:/app/runs" '
-            '-v "$PWD/data:/app/data" ca-messages',
+            'docker run --rm --env-file .env -v "$PWD/runs:/app/runs" -v "$PWD/data:/app/data" '
+            'ca-messages python -m ca batch',
             readme,
         )
+        self.assertNotIn("8765", readme)
 
     def test_environment_and_local_output_are_excluded(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")

@@ -1,4 +1,5 @@
 import subprocess
+import re
 import unittest
 from pathlib import Path
 
@@ -87,9 +88,8 @@ class ScaffoldTest(unittest.TestCase):
             "| Step | What you did | Input | Output | Tool or agent used | Screenshots |",
             text,
         )
-        self.assertIn("PENDING: screenshots/step-01-review-brief.png", text)
-        self.assertIn("PENDING: screenshots/step-02-scaffold-plan.png", text)
-        self.assertIn("Reviewed the written challenge brief", text)
+        self.assertRegex(text, r"\| 1 \|[^\n]*screenshots/step-01-[a-z0-9-]+\.png")
+        self.assertIn("Reviewed the brief", text)
         self.assertIn("docs/superpowers/plans/2026-11-04-project-scaffold.md", text)
         shots = (ROOT / "log" / "screenshots" / "README.md").read_text(encoding="utf-8")
         self.assertIn("step-NN-short-name.png", shots)
@@ -133,13 +133,12 @@ class ScaffoldTest(unittest.TestCase):
     def test_step_screenshots_are_real_pngs_and_the_log_links_them(self):
         log = (ROOT / "log" / "LOG.md").read_text(encoding="utf-8")
         self.assertNotIn("PENDING:", log)
-        for name in ["step-01-review-brief.png", "step-02-scaffold-plan.png"]:
-            path = ROOT / "log" / "screenshots" / name
-            data = path.read_bytes()
+        names = re.findall(r"\]\(screenshots/(step-\d{2}-[a-z0-9-]+\.png)\)", log)
+        self.assertTrue(names)
+        for name in names:
+            data = (ROOT / "log" / "screenshots" / name).read_bytes()
             self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
             self.assertGreater(len(data), 10_000)
-            self.assertIn(f"](screenshots/{name})", log)
-
 
 class CaptureStepTest(unittest.TestCase):
     def test_screenshot_name_and_refuses_to_overwrite(self):

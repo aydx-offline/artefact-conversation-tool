@@ -21,6 +21,8 @@ CHECK_ZH = {
     "offer": "像在给优惠，去掉，澄白没有折扣",
     "product": "提到了这次不该提的产品，去掉",
     "capacity": "提到了名额，去掉",
+    "newness": "说了新款、新品或到货，资料里没有，去掉",
+    "discount_reply": "要说明澄白不降价、所有渠道一个价格，再送一份心意：一次免费护理、小礼物，或到店试用",
 }
 
 
@@ -52,7 +54,7 @@ def _candidate_list(raw):
     if not isinstance(items, list):
         return []
     return [
-        {**i, **{k: i[k] if isinstance(i.get(k), str) else "" for k in ("reason", "tone", "length")}}
+        {**i, **{k: i[k] if isinstance(i.get(k), str) else "" for k in ("reason", "tone", "length")}, "strategy": i["strategy"].split("；")[0].strip(), "text": i["text"].replace("～", "").replace("~", "")}
         for i in items
         if isinstance(i, dict) and isinstance(i.get("strategy"), str) and isinstance(i.get("text"), str)
     ]
@@ -90,8 +92,8 @@ def _resolve(case, brand, clients):
         raise CaseError("event_id", f"missing or unknown event {case.event_id!r}")
     event = copy.deepcopy(brand.events[case.event_id]) if case.event_id else None
     history = [asdict(m) if is_dataclass(m) else m for m in (case.history if case.history is not None else client.get("history", []))]
-    context = resolve_context(case.timestamp, client, brand.festivals, case.occasion, history[-1]["time"] if history else None)
     greeting = case.scenario == "1 Birthday and festive greetings"
+    context = resolve_context(case.timestamp, client, brand.festivals, case.occasion, history[-1]["time"] if history else None, greeting)
     if greeting and not context.occasion:
         raise CaseError("occasion", "scenario 1 needs an occasion")
     return copy.deepcopy(
@@ -105,7 +107,7 @@ def _resolve(case, brand, clients):
             "days_since_purchase": context.days_since_purchase,
             "months_since_visit": context.months_since_visit,
             "today": context.today,
-            "days_to_birthday": context.days_to_birthday,
+            "birthday_note": context.birthday_note,
             "days_since_message": context.days_since_message,
             "next_festival": context.next_festival if greeting else None,
             "last_festival": context.last_festival if greeting else None,

@@ -10,6 +10,8 @@ from pathlib import Path
 
 from ca.brand import load_brand
 from ca.clients import load_clients, store_hash
+from ca.judge import candidate_acceptable, case_good
+from ca.prompts import JUDGE_FACT_ITEMS, JUDGE_SCORE_ITEMS, _client_lines, _product_lines
 from ca.judge import evaluate_case, evaluation_id
 from ca.llm import GlmModel, require_models
 from ca.pipeline import generate
@@ -350,26 +352,8 @@ def _evaluate_command(args, root, env, judge_model):
     return 0
 
 
-def _values(value):
-    if isinstance(value, dict):
-        return [item for key, item in value.items() if key != "id" and not key.endswith("_id")]
-    if isinstance(value, list):
-        return value
-    return [value]
-
-
-def _readable(value):
-    if not value:
-        return ""
-    if isinstance(value, list):
-        return "；".join(filter(None, (_readable(item) for item in value)))
-    if isinstance(value, dict):
-        ordered = []
-        if value.get("name"):
-            ordered.append(value["name"])
-        ordered.extend(item for item in _values(value) if item != value.get("name"))
-        return "，".join(filter(None, (_readable(item) for item in ordered)))
-    return str(value)
+def _plain(lines):
+    return "；".join(lines).replace("「", "").replace("」", "")
 
 
 def _candidate_texts(case_file):
@@ -384,11 +368,53 @@ def _history_text(history):
     )
 
 
+def _report_command(args, root):
+    run_dir = _run_dir(root, args.run)
+    manifest = _manifest(run_dir)
+    evaluations = {}
+    scores = run_dir / "scores.jsonl"
+    for line in scores.read_text(encoding="utf-8").splitlines() if scores.exists() else []:
+        row = json.loads(line)
+        evaluations.setdefault(row["case_id"], {}).setdefault(row.get("evaluation_id"), []).append(row)
+    good, by_scenario, items, problems = {}, {}, {}, []
+    for case_id in manifest["case_ids"]:
+        done = [rows for rows in evaluations.get(case_id, {}).values() if all(r.get("status") != "failed" for r in rows)]
+        if not done:
+            continue
+        rows = done[-1]
+        case_file = json.loads((run_dir / "cases" / f"{case_id}.json").read_text(encoding="utf-8"))
+        good[case_id] = case_good([candidate_acceptable(case_file["checks"], rows, i) for i in range(3)])
+        counts = by_scenario.setdefault(case_file["case"]["scenario"], [0, 0])
+        counts[0] += good[case_id]
+        counts[1] += 1
+        problems += [f"{case_id} check {c['name']}: {c.get('reason', '')}" for c in case_file["checks"] if not c["passed"]]
+        for row in rows:
+            if row.get("candidate") is None:
+                continue
+            value = {"pass": 1, "fail": 0}.get(row["value"], row["value"])
+            items.setdefault(row["item"], []).append(value)
+            if value == 0 or (row["item"] in JUDGE_SCORE_ITEMS and value < 3):
+                problems.append(f"{case_id} {row['candidate']} {row['item']} {'fail' if value == 0 else value}: {row.get('reason', '')}")
+    missing = [case_id for case_id in manifest["case_ids"] if case_id not in good]
+    print(f"run {args.run}, generator {manifest['generator_version']}")
+    print(f"good: {sum(good.values())} of {len(good)} judged cases (not judged: {', '.join(missing) or 'none'})")
+    for scenario, (number, total) in sorted(by_scenario.items()):
+        print(f"{scenario}: {number} / {total}")
+    print("judge items (mean; 事实 and 期望 are pass rates):")
+    for item in JUDGE_FACT_ITEMS + JUDGE_SCORE_ITEMS:
+        if item in items:
+            print(f"  {item} {sum(items[item]) / len(items[item]):.2f}")
+    print("problems:")
+    print("\n".join(f"  {line}" for line in problems) or "  none")
+    return 0
+
+
 def _export_run(args, root):
     run_dir = _run_dir(root, args.run)
     manifest = _manifest(run_dir)
     if manifest.get("split") == "tuning":
         raise SystemExit("Refusing to export a tuning run")
+    catalog = load_brand(root / "data" / "brand").catalog
     rows = []
     for case_id in manifest["case_ids"]:
         case_file = json.loads((run_dir / "cases" / f"{case_id}.json").read_text(encoding="utf-8"))
@@ -399,9 +425,9 @@ def _export_run(args, root):
             [
                 case_id,
                 case_file["case"]["scenario"],
-                _readable(resolved.get("client")),
+                _plain(_client_lines(resolved["client"], catalog, resolved.get("today"))) if resolved.get("client") else "",
                 _history_text(resolved.get("history")),
-                _readable(resolved.get("products")),
+                "\n".join(_plain(_product_lines(product)) for product in resolved.get("products") or []),
                 *texts,
                 manifest["generator_version"],
             ]
@@ -453,6 +479,8 @@ def _parser():
     batch_parser.add_argument("--cases")
     evaluate_parser = commands.add_parser("evaluate")
     evaluate_parser.add_argument("--run", required=True)
+    report_parser = commands.add_parser("report")
+    report_parser.add_argument("--run", required=True)
     export_parser = commands.add_parser("export")
     choice = export_parser.add_mutually_exclusive_group(required=True)
     choice.add_argument("--run")
@@ -471,6 +499,8 @@ def main(argv=None, *, model=None, judge_model=None, root=None):
         return _batch_command(args, root, env, model)
     if args.command == "evaluate":
         return _evaluate_command(args, root, env, judge_model or model)
+    if args.command == "report":
+        return _report_command(args, root)
     if args.before:
         if not args.after:
             raise SystemExit("--before requires --after")

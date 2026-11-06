@@ -1,3 +1,7 @@
+import json
+import time
+from pathlib import Path
+
 from ca.version import GENERATOR_VERSION
 
 from ca.prompts import managed_prompts
@@ -8,8 +12,9 @@ _off_printed = False
 
 
 class Telemetry:
-    def __init__(self, client=None):
+    def __init__(self, client=None, prices=None):
         self.client = client
+        self.prices = prices or {}
 
     def trace_case(self, name, **kwargs):
         if self.client is None:
@@ -42,6 +47,10 @@ class Telemetry:
         if judge_call:
             calls.append(judge_call)
         usage, latency = _totals(calls)
+        names = ["judge" if step is judge_call else step.get("name") for step in calls]
+        models = [judge_call.get("model") if step is judge_call else writer_model for step in calls]
+        costs = [_costs(step.get("usage"), self.prices.get((model or "").lower())) for step, model in zip(calls, models)]
+        cost = sum(c["total"] for c in costs if c and "total" in c) if any(costs) else None
         root = self.client.start_observation(
             name=case.get("case_id", ""),
             input={
@@ -75,15 +84,13 @@ class Telemetry:
                 "run_id": run_id,
                 "writer_model": writer_model,
                 "usage": usage,
+                "cost": cost,
                 "latency_ms": latency,
             },
         )
         context = _trace_context(root)
-        for step in calls:
-            if step is judge_call:
-                name, model = "judge", judge_call.get("model")
-            else:
-                name, model = step.get("name"), writer_model
+        for step, name, model, call_cost in zip(calls, names, models, costs):
+            started = time.time_ns()
             child = self.client.start_observation(
                 name=name,
                 as_type="generation",
@@ -92,12 +99,12 @@ class Telemetry:
                 output=step.get("raw"),
                 model=model,
                 usage_details=_tokens(step.get("usage")),
-                cost_details=_costs(step.get("usage")),
+                cost_details=call_cost,
                 metadata={"latency_ms": step.get("latency_ms")},
             )
             end = getattr(child, "end", None)
             if callable(end):
-                end()
+                end(end_time=started + step["latency_ms"] * 1_000_000 if isinstance(step.get("latency_ms"), int) else None)
         trace_id = getattr(root, "trace_id", None)
         for check in case_file.get("checks") or []:
             self.score(
@@ -155,13 +162,13 @@ def _tokens(usage):
     return tokens or None
 
 
-def _costs(usage):
+def _costs(usage, price=None):
     if not usage:
         return None
-    costs = {}
-    for source, name in (("input_cost", "input"), ("output_cost", "output"), ("total_cost", "total")):
-        if source in usage:
-            costs[name] = usage[source]
+    costs = {name: usage[source] for source, name in (("input_cost", "input"), ("output_cost", "output"), ("total_cost", "total")) if source in usage}
+    if not costs and price:
+        costs = {"input": usage.get("input", 0) * price[0] / 1_000_000, "output": usage.get("output", 0) * price[1] / 1_000_000}
+        costs["total"] = costs["input"] + costs["output"]
     return costs or None
 
 
@@ -214,6 +221,12 @@ def _langfuse_client(env):
     return Langfuse(**settings)
 
 
+def load_prices():
+    path = Path(__file__).resolve().parent.parent / "data" / "prices.json"
+    models = json.loads(path.read_text(encoding="utf-8"))["models"]
+    return {name: (price["input"], price["output"]) for name, price in models.items()}
+
+
 def _off():
     global _off_printed
     if not _off_printed:
@@ -262,6 +275,6 @@ def open_telemetry(env) -> Telemetry:
     if not env.get("LANGFUSE_PUBLIC_KEY") or not env.get("LANGFUSE_SECRET_KEY"):
         return _off()
     try:
-        return Telemetry(_langfuse_client(env))
+        return Telemetry(_langfuse_client(env), load_prices())
     except ImportError:
         return _off()

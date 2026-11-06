@@ -78,8 +78,6 @@ class RetryTests(unittest.TestCase):
                 "scores": [{"candidate": 0, "item": "事实", "value": 1}],
             },
         )
-        self.assertEqual(parse_json('{"客户姓名":"林女士","场景":"产品推荐","客户的话":""}'),
-                         {"client_name": "林女士", "scenario": "产品推荐", "client_message": ""})
 
     def test_first_success_does_not_sleep(self):
         sleeps = []

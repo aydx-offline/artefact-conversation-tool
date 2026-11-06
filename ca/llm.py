@@ -90,7 +90,7 @@ def combine_calls(replies):
 JSON_KEYS_ZH = {
     "候选": "candidates", "策略": "strategy", "理由": "reason", "语气": "tone", "长度": "length",
     "正文": "text", "选择": "picks", "评分": "scores", "序号": "candidate", "项目": "item",
-    "分数": "value", "客户姓名": "client_name", "场景": "scenario", "客户的话": "client_message",
+    "分数": "value",
 }
 
 

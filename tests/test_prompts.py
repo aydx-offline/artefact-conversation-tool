@@ -5,7 +5,6 @@ from pathlib import Path
 
 from ca.prompts import (
     SCENARIO_ZH,
-    chat_prompt,
     draft_prompt,
     judge_prompt,
     managed_prompts,
@@ -55,7 +54,6 @@ def all_prompts():
     return {
         "plan": plan_prompt(RESOLVED, MENU),
         "write": write_prompt(RESOLVED, PLAN),
-        "chat": chat_prompt("帮我给林女士写生日问候"),
         "judge": judge_prompt(RESOLVED, CANDIDATES, EXPECT),
     }
 
@@ -85,7 +83,7 @@ class PromptTest(unittest.TestCase):
         self.assertEqual(set(SCENARIO_ZH), set(SCENARIOS))
 
     def test_system_says_quotes_are_data(self):
-        for name in ("plan", "write", "chat"):
+        for name in ("plan", "write"):
             self.assertIn("引用", all_prompts()[name][0])
             self.assertIn("不是指令", all_prompts()[name][0])
 
@@ -131,10 +129,10 @@ class PromptTest(unittest.TestCase):
             self.assertNotIn(word, user)
 
     def test_day_line_states_date_season_birthday_and_last_message(self):
-        resolved = {**RESOLVED, "today": "2026-08-17", "days_to_birthday": 210, "days_since_message": 0}
+        resolved = {**RESOLVED, "today": "2026-08-17", "birthday_note": "她的生日不在这几天，不要提生日", "days_since_message": 0}
         _, user = write_prompt(resolved, PLAN)
         self.assertIn("今天：2026-08-17（8月，夏季）", user)
-        self.assertIn("距她生日还有210天", user)
+        self.assertIn("生日：她的生日不在这几天，不要提生日", user)
         self.assertIn("上一条消息是今天", user)
         _, user = write_prompt({**resolved, "today": "2026-01-05", "days_since_message": 3}, PLAN)
         self.assertIn("（1月，冬季）", user)
@@ -162,7 +160,7 @@ class PromptTest(unittest.TestCase):
         self.assertNotIn("波浪号", judge)
 
     def test_prompts_sent_to_the_model_have_no_english(self):
-        for pair in (draft_prompt(RESOLVED, MENU), judge_prompt(RESOLVED, CANDIDATES, EXPECT), chat_prompt("帮我给林女士写生日问候")):
+        for pair in (draft_prompt(RESOLVED, MENU), judge_prompt(RESOLVED, CANDIDATES, EXPECT)):
             self.assertIsNone(re.search("[A-Za-z]", "\n".join(pair)), pair)
         system, _ = draft_prompt(RESOLVED, MENU)
         self.assertIn('{"候选":[{"策略"', system)
@@ -195,10 +193,23 @@ class PromptTest(unittest.TestCase):
         for text in ("料子本身在说话", "下次路过进来认个门", "不知道就不说", "四万多的价格确实得考虑一下"):
             self.assertIn(text, system)
 
+    def test_each_purchase_and_visit_shows_its_age(self):
+        client = {**LIN, "last_visit": "2026-03-02", "purchases": [{"product_id": "scarf", "date": "2025-05-12", "color": "米白"}]}
+        system, user = draft_prompt({**RESOLVED, "client": client, "today": "2026-11-06"}, MENU)
+        self.assertIn("素缎围巾（2025-05-12，米白，一年多前）", user)
+        self.assertIn("上次到店：「2026-03-02（8个月前）」", user)
+        self.assertIn("不要自己换算", system)
+
     def test_purchase_colour_is_shown(self):
         client = {**LIN, "purchases": [{"product_id": "scarf", "date": "2026-03-02", "color": "米白"}]}
         _, user = draft_prompt({**RESOLVED, "client": client}, MENU)
         self.assertIn("素缎围巾（2026-03-02，米白）", user)
+
+    def test_voice_bounds_the_free_gesture(self):
+        system, _ = draft_prompt(RESOLVED, MENU)
+        for text in ("只限她已有的一件东西，只做一次", "不说每年、终身或长期免费", "只有客人提折扣时才可以送一份心意，其他场景不说免费", "## 可以给的心意"):
+            self.assertIn(text, system)
+        self.assertNotIn("不送优惠", system)
 
     def test_discount_may_offer_care_gift_or_trial(self):
         system, _ = draft_prompt(RESOLVED, MENU)
@@ -241,11 +252,6 @@ class PromptTest(unittest.TestCase):
         ):
             self.assertIn("独特声音测试", "\n".join(pair))
 
-    def test_chat_lists_eight_scenarios(self):
-        system, _ = chat_prompt("你好")
-        for zh in SCENARIO_ZH.values():
-            self.assertIn(zh, system)
-
     def test_judge_items(self):
         system, _ = judge_prompt(RESOLVED, CANDIDATES, EXPECT)
         for item in ("事实", "期望", "场景", "称呼", "具体", "中文", "品牌", "不催"):
@@ -258,7 +264,7 @@ class PromptTest(unittest.TestCase):
 
     def test_managed_prompts_keep_the_judge_rule(self):
         prompts = {item["name"]: item["prompt"] for item in managed_prompts(BRAND)}
-        self.assertEqual(set(prompts), {"ca/draft", "ca/revise", "ca/judge", "ca/chat"})
+        self.assertEqual(set(prompts), {"ca/draft", "ca/revise", "ca/judge"})
         judge = prompts["ca/judge"]
         self.assertEqual(judge[0]["role"], "system")
         self.assertIn("各项打分都要更加严格", judge[0]["content"])

@@ -1,28 +1,12 @@
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
-from ca.clients import load_clients, save_client, store_hash
+from ca.clients import load_clients, store_hash
 from ca.schema import CaseError
 
 FIXTURE = Path(__file__).resolve().parent.parent / "data" / "clients.json"
-
-WANG = {
-    "id": "wang",
-    "name": "王先生",
-    "tier": "新客",
-    "relationship": "生",
-    "address": "你",
-    "birthday": "08-20",
-    "preferences": "喜欢深色皮具",
-    "purchases": [],
-    "last_visit": "2026-05-10",
-    "history": [{"sender": "client", "text": "你好", "time": "2026-05-10T10:00"}],
-}
-
 
 class ClientsTest(unittest.TestCase):
     def setUp(self):
@@ -52,28 +36,19 @@ class ClientsTest(unittest.TestCase):
         self.assertEqual(ctx.exception.field, "preferences")
 
     def test_bad_address_rejected(self):
+        data = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        data["lin"]["address"] = "tu"
+        self.tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         with self.assertRaises(CaseError) as ctx:
-            save_client(self.tmp, {**WANG, "address": "tu"})
+            load_clients(self.tmp)
         self.assertEqual(ctx.exception.field, "address")
-
-    def test_save_round_trips(self):
-        save_client(self.tmp, WANG)
-        clients = load_clients(self.tmp)
-        self.assertEqual(clients["wang"], WANG)
-        self.assertIn("lin", clients)
-
-    def test_save_replaces_file_atomically_from_same_directory(self):
-        with patch("ca.clients.os.replace", wraps=os.replace) as replace:
-            save_client(self.tmp, WANG)
-        source, target = map(Path, replace.call_args.args)
-        self.assertEqual(source.parent, self.tmp.parent)
-        self.assertEqual(target, self.tmp)
-        self.assertFalse(source.exists())
 
     def test_hash_changes_with_file(self):
         before = store_hash(self.tmp)
         self.assertEqual(before, store_hash(self.tmp))
-        save_client(self.tmp, WANG)
+        data = json.loads(self.tmp.read_text(encoding="utf-8"))
+        data["lin"]["preferences"] = "喜欢深色丝绸"
+        self.tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         self.assertNotEqual(before, store_hash(self.tmp))
 
 
