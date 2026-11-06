@@ -1,6 +1,6 @@
 # CA Message App Implementation Plan
 
-> **Historical.** This is the plan the build followed. On 2026-11-06 the web page (Task 14) and chat extraction (Task 12) were removed at Ann's request, and the command line became the only front end. The design document says what the tool is now.
+> **Historical.** This is the plan the build followed. On 2026-11-06 the web page (Task 14) and chat extraction (Task 12) were removed at the author's request, and the command line became the only front end. The design document says what the tool is now.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -16,10 +16,10 @@
 
 - Fictional people and brands only.
 - Do not commit `Written_Challenge_Brief.pdf`. Do not publish the brief.
-- Do not invent a screenshot. Ann said to skip screenshots for now. A log row stays `PENDING` until a real capture exists.
+- Do not invent a screenshot. The author said to skip screenshots for now. A log row stays `PENDING` until a real capture exists.
 - Do not overwrite an earlier run.
-- Do not create a git commit unless Ann explicitly asks. Skip the commit step this skill usually adds.
-- If a requirement is unclear, stop and ask Ann. Do not guess.
+- Do not create a git commit unless the author explicitly asks. Skip the commit step this skill usually adds.
+- If a requirement is unclear, stop and ask the author. Do not guess.
 - Write a failing test before the change it covers. Tests are stdlib `unittest`. Run `python3 -m unittest <module> -v` from the repo root.
 - Edit an existing file before creating a new one. The files this plan creates are the app. After one exists, extend it.
 - Keep code and docs concise. The default languages are Python and Markdown.
@@ -27,7 +27,7 @@
 - Every natural-language string sent to GLM is written in Chinese from the start. Do not draft it in English and translate it. The tool does not translate.
 - The only English inside that text is an allowed brand or product name. JSON keys stay English. Numbers, dates, and prices stay digits.
 - The case `scenario` value stays one of the eight labels in `AGENT.md`. Prompts show the Chinese name from `SCENARIO_ZH` below. That map is authored in Chinese.
-- `WRITER_MODEL` and `JUDGE_MODEL` stay empty until Ann names them. They must differ. Do not pick a model.
+- `WRITER_MODEL` and `JUDGE_MODEL` stay empty until the author names them. They must differ. Do not pick a model.
 - A candidate is acceptable when every code check passes, both pass-or-fail judge items pass, and no 1–5 item is below 3. A case is good when all three candidates are acceptable.
 - 简短 is 1–50 characters. 适中 is 51–130. Nothing exceeds 150. Count `len(text)`.
 - Character-bigram overlap is `|A ∩ B| / min(|A|, |B|)`. Above 0.75 fails. Sets of adjacent character pairs. No pairs means overlap 0.
@@ -44,7 +44,7 @@
 - `runs/` is gitignored.
 - Before-and-after export writes `cases/before-after.csv`.
 - Export cells for client, history, and product are the resolved Chinese text, not ids.
-- `docs/coverage.md` is written and then work stops until Ann approves it. No `cases/inputs.jsonl` or `cases/tuning.jsonl` before that.
+- `docs/coverage.md` is written and then work stops until the author approves it. No `cases/inputs.jsonl` or `cases/tuning.jsonl` before that.
 - The resolved dict passed to prompts has these shapes. `client` is the client-store dict. `products` is a list of catalog dicts. `event` is an event dict or `None`. `history` is a list of `Message` or of dicts with `sender`, `text`, `time`. `occasion` comes from resolved calendar context only for scenario 1; other scenarios use the case's explicit occasion. `tone` and `length` are Chinese strings; empty values mean the model chooses. `expectations` is a list of strings or a dict `{must, must_not}`. Prompts render only the Chinese fields, with price and dates as digits. Ids such as `lin` and `scarf` and English keys never appear in the prompt text. Revise prompts show only the failing candidates, with their original indexes.
 - Scenario 6 client text must contain a marker: price too high uses 贵 or 价格高; comparison uses 别处, 别家, 代购, 其他店, or 别的店; discount uses 折扣, 优惠, 打折, 便宜点, or 便宜一点.
 
@@ -81,8 +81,8 @@ SCENARIO_ZH = {
 | `ca/web.py` | JSON handlers and the HTTP server |
 | `web/index.html` | Case form, chat, clients, trace, batch, versions |
 | `data/brand/` | Voice, rules, menus, catalog, events, festivals, written in Chinese |
-| `docs/rubric.md` | Mapping from the spec. Still a draft until Ann accepts it |
-| `docs/coverage.md` | Case grid. Ann approves it before any case file is filled |
+| `docs/rubric.md` | Mapping from the spec. Still a draft until the author accepts it |
+| `docs/coverage.md` | Case grid. The author approves it before any case file is filled |
 | `Dockerfile` | One image. `runs/` and `data/` are mounts |
 
 `generate` takes `clients` as well as the spec's `case, model, brand, recorder`, because resolution reads the store.
@@ -103,7 +103,7 @@ SCENARIO_ZH = {
 
 In `test_agent_manual_has_required_sections_and_rules`, stop requiring `brand document`, `message generator`, and `filled test cases` under `## Out of scope until a later plan`. Require those three strings under `## In scope for the scaffold`.
 
-In `test_case_header_and_draft_rubric`, delete the assertion that `cases/cases.csv` has one line. Keep the header assertion. Require these rubric strings: `## Scoring`, `A candidate is acceptable`, `no 1–5 item is below 3`, `Facts, dates, and details come from the input`. Keep `Draft. Do not generate messages until Ann accepts or edits this file.`
+In `test_case_header_and_draft_rubric`, delete the assertion that `cases/cases.csv` has one line. Keep the header assertion. Require these rubric strings: `## Scoring`, `A candidate is acceptable`, `no 1–5 item is below 3`, `Facts, dates, and details come from the input`. Keep `Draft. Do not generate messages until the author accepts or edits this file.`
 
 - [ ] **Step 2: Run the test**
 
@@ -740,7 +740,7 @@ Expected: PASS.
 
 **Interfaces:**
 - Consumes: the eight scenario labels
-- Produces: a table Ann approves before Task 16
+- Produces: a table the author approves before Task 16
 
 Do not create `cases/inputs.jsonl` or `cases/tuning.jsonl` in this task. Do not call GLM.
 
@@ -771,7 +771,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Stop**
 
-Ask Ann to approve `docs/coverage.md`. Do not start Task 16 until she does.
+Ask the author to approve `docs/coverage.md`. Do not start Task 16 until it is approved.
 
 ## Task 16: Clients and case files, after approval
 
@@ -785,7 +785,7 @@ Ask Ann to approve `docs/coverage.md`. Do not start Task 16 until she does.
 - Consumes: the approved coverage table, brand catalog, `prose_is_chinese`
 - Produces: 24 to 30 clients, 50 final cases, 20 tuning cases
 
-Skip this task until Ann approves the coverage table.
+Skip this task until the author approves the coverage table.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -849,7 +849,7 @@ Expected: PASS.
 ## Self-review
 
 - Spec pipeline, checks, judge rule, two case files, export refusal, page views, and Docker each have a task.
-- The evaluation report stays a document Ann writes from the trace view. The app does not generate it.
-- GLM model names stay empty. Task 7 refuses a real run until Ann sets two different names.
-- Task 16 does not start until Ann approves `docs/coverage.md`.
+- The evaluation report stays a document the author writes from the trace view. The app does not generate it.
+- GLM model names stay empty. Task 7 refuses a real run until the author sets two different names.
+- Task 16 does not start until the author approves `docs/coverage.md`.
 - No step says TBD, TODO, or "similar to Task N".

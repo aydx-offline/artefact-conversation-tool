@@ -4,7 +4,7 @@ A command-line tool that drafts three Chinese WeChat messages for a Client Advis
 
 Everything here is fictional: the house, the clients, the products, and the chats. The written brief that set the challenge is not included and must not be published.
 
-**Final result.** On the 50 test cases, 40 are good, as judged by a second model. The ten that are not are listed, not hidden, in `docs/evaluation-report.md`.
+**Final result.** On the 50 test cases, 40 are good, as judged by a second model. The ten that are not are listed in `docs/evaluation-report.md`.
 
 ## Quick start
 
@@ -71,5 +71,3 @@ Any command above works after `ca-messages`, for example `python -m ca generate 
 | Bonus: architecture | `docs/architecture.md`, as Mermaid diagrams |
 
 The design is in `docs/superpowers/specs/2026-11-04-ca-message-app-design.md`. Rules for agents working in the repo are in `AGENT.md`.
-
-Submission is due 2026-11-09. Do not publish the brief.

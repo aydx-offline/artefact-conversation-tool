@@ -1,6 +1,6 @@
-# Draft rubric
+# Rubric
 
-Draft. Do not generate messages until Ann accepts or edits this file.
+The code checks and the judge follow this rubric. `docs/methodology.md` says how.
 
 ## Good
 

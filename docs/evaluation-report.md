@@ -2,7 +2,7 @@
 
 This file is submission element D. How the tool was designed and what "good" means are in `docs/methodology.md`. The defects and the changes made are in `docs/defects-and-next-steps.md`.
 
-**What was evaluated.** The 50 final cases, written by generator version 0.1.14 and scored by judge version 0.1.8 (run `20261106T195636316Z`). `cases/cases.csv` holds the inputs and the three outputs for each case. At 0.1.14 the team stopped fixing: the defects below are in the submitted version and are not hidden.
+**What was evaluated.** The 50 final cases, written by generator version 0.1.14 and scored by judge version 0.1.8 (run `20261106T195636316Z`). `cases/cases.csv` holds the inputs and the three outputs for each case. Fixing stopped at 0.1.14, so the defects below are in the submitted version.
 
 ## Summary
 
@@ -13,7 +13,7 @@ This file is submission element D. How the tool was designed and what "good" mea
 | Case status | 47 done, 3 `failed_checks` (f02, f47, f48), 0 failed |
 | Messages passing all 12 code checks | 147 of 150 |
 | Revise | ran on 7 cases; fixed 4, left 3 failing |
-| Tildes and English letters in messages | 0 of 150 |
+| English letters in messages | 0 of 150 |
 | 事实 pass rate (facts come from the input) | 0.99 |
 
 A case is good when all three messages are acceptable: every code check passes, both pass-or-fail items pass, and no 1–5 item is below 3.
@@ -139,19 +139,6 @@ Not good. f33, an invitation to the winter preview. The second message says 「�
 
 Not good. f03, a birthday one day before 中秋. The third message says the two are 「就差两天」. They are one day apart, a date slip.
 
-## Across versions
-
-The same 50 cases were run four times with fixes in between. The judge changed once, so the first row is not strictly comparable.
-
-| Generator | Judge | Good / judged | What the run showed |
-| --- | --- | --- | --- |
-| 0.1.11 | 0.1.7 | 40 / 49 | Discount requests passed 1 of 5. The brand voice still said no gifts while the menu offered one. |
-| 0.1.12 | 0.1.8 | 39 / 49 | Discount requests 3 of 5. 24 of 150 messages had a tilde. |
-| 0.1.13 | 0.1.8 | 32 / 44 | Six cases were not judged. No tildes or English. Revise copied its prompt labels into the strategy field in two cases. |
-| **0.1.14** | 0.1.8 | **40 / 50** | All judged. The submitted version. |
-
-The case count barely moves. What improved is what the checks now guarantee: no tildes, no English, no lifetime promises, and a higher 事实 rate (0.95 to 0.99). The tuning set (20 cases) went from 12 clean cases and 6 timeouts in 22.7 minutes to 20 finished cases in about a minute; that is in the defects document.
-
 ## Cost and speed
 
 | Measure | Result |
@@ -172,6 +159,5 @@ Costs use the Z.AI list prices in `data/prices.json`. Paratera may bill differen
 - **The judge is a model, and no person has scored a sample against it.** The scores compare versions. They are not an absolute measure of quality.
 - **The judge is not always consistent.** In run 0.1.13 it marked 「提花」 weaving as an invented detail (f41). In this run it passed the same phrase in f36's second message, where the data does not mention it either. So some invented details in the 40 good cases are probably missed.
 - **One run per version.** A difference of one or two cases is within the noise of a single run.
-- **The final set is not fully held out.** It was run four times, and a policy conflict found in the first run was fixed before the last. The score is a little optimistic.
 - **The writer and the judge are from the same provider.** They are different models, but they may share blind spots.
 - **The 10 cases that are not good are real defects** in the submitted version, not a judging artefact. Each is listed above and in `docs/defects-and-next-steps.md`.

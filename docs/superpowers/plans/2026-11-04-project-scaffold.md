@@ -17,12 +17,12 @@
 - Messages the future tool produces are three Chinese WeChat candidates covering all six scenarios. This plan does not produce those messages.
 - Do not invent a screenshot. A log row stays `PENDING` until a real PNG of the chat exists.
 - Do not overwrite an earlier run. No generation runs exist yet.
-- Do not create a git commit unless Ann explicitly asks.
+- Do not create a git commit unless the author explicitly asks.
 - Deadline for the whole submission is the end of 2026-11-09. This plan does not submit anything.
 - Write a failing test before the change it covers.
 - Edit an existing file before creating a new one. The files this plan creates are the starting set. After they exist, extend them instead of adding files.
 - Keep code and docs concise.
-- If a requirement is unclear, stop and ask Ann. Do not guess.
+- If a requirement is unclear, stop and ask the author. Do not guess.
 - Before finishing a document, read `.cursor/skills/deslop/SKILL.md` and apply it. The file is the Cursor team-kit skill, copied verbatim. Do not rewrite it.
 
 ## Decisions locked here
@@ -31,7 +31,7 @@
 - `AGENTS.md` is a short pointer to `AGENT.md`, so a harness that auto-reads `AGENTS.md` still reaches the manual.
 - `.cursor/rules/project.mdc` repeats only the hard rules, under 50 lines, with `alwaysApply: true`.
 - Scenario 6 is stored as three scenario labels: price too high, comparison, and discount request.
-- `docs/rubric.md` is a draft. No generation happens until Ann accepts or edits it.
+- `docs/rubric.md` is a draft. No generation happens until the author accepts or edits it.
 - Screenshots for the two steps that already happened are captured during Task 6 from the real Cursor chat.
 - The message agent's tooling pool is undecided. This plan does not choose models, frameworks, or tools.
 - Deslop is installed at `.cursor/skills/deslop/SKILL.md` from `cursor/plugins` `cursor-team-kit/skills/deslop/SKILL.md`.
@@ -149,7 +149,7 @@ Add these methods to `ScaffoldTest`:
             "Do not publish the brief.",
             "Do not invent a screenshot.",
             "Do not overwrite an earlier run.",
-            "If a requirement is unclear, stop and ask Ann. Do not guess.",
+            "If a requirement is unclear, stop and ask the author. Do not guess.",
             "Write a failing test before the change it covers.",
             "Edit an existing file before creating a new one.",
             "Keep code and docs concise.",
@@ -174,7 +174,7 @@ Add these methods to `ScaffoldTest`:
         self.assertIn("alwaysApply: true", rule)
         self.assertLess(len(rule.splitlines()), 50)
         self.assertIn("AGENT.md", rule)
-        self.assertIn("If a requirement is unclear, stop and ask Ann. Do not guess.", rule)
+        self.assertIn("If a requirement is unclear, stop and ask the author. Do not guess.", rule)
         self.assertIn("Edit an existing file before creating a new one.", rule)
         self.assertIn("Before finishing a document, read `.cursor/skills/deslop/SKILL.md` and apply it.", rule)
         skill = (ROOT / ".cursor" / "skills" / "deslop" / "SKILL.md").read_text(encoding="utf-8")
@@ -200,7 +200,7 @@ Expected: FAIL because `AGENT.md` does not exist.
 Read [AGENT.md](AGENT.md) before changing this repo.
 ```
 
-`.cursor/rules/project.mdc` has `alwaysApply: true`, points at `AGENT.md`, and repeats the hard rules in under 50 lines. It must include these three sentences: "If a requirement is unclear, stop and ask Ann. Do not guess." "Edit an existing file before creating a new one." "Before finishing a document, read `.cursor/skills/deslop/SKILL.md` and apply it." One concern: how an agent must behave in this repo.
+`.cursor/rules/project.mdc` has `alwaysApply: true`, points at `AGENT.md`, and repeats the hard rules in under 50 lines. It must include these three sentences: "If a requirement is unclear, stop and ask the author. Do not guess." "Edit an existing file before creating a new one." "Before finishing a document, read `.cursor/skills/deslop/SKILL.md` and apply it." One concern: how an agent must behave in this repo.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -293,7 +293,7 @@ Expected: PASS
         rubric = (ROOT / "docs" / "rubric.md").read_text(encoding="utf-8")
         for heading in ["# Draft rubric", "## Good", "## Not acceptable", "## Unscored until the brand exists"]:
             self.assertIn(heading, rubric)
-        self.assertIn("Draft. Do not generate messages until Ann accepts or edits this file.", rubric)
+        self.assertIn("Draft. Do not generate messages until the author accepts or edits this file.", rubric)
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -306,7 +306,7 @@ Expected: FAIL because `cases/cases.csv` does not exist.
 
 The CSV file contains only the header line from the test. UTF-8, no BOM, trailing newline, no data rows.
 
-`docs/rubric.md` starts with `# Draft rubric` and the sentence `Draft. Do not generate messages until Ann accepts or edits this file.`
+`docs/rubric.md` starts with `# Draft rubric` and the sentence `Draft. Do not generate messages until the author accepts or edits this file.`
 
 ## Good
 
@@ -415,7 +415,7 @@ Expected: FAIL because the PNGs do not exist and the cells still say `PENDING`.
 
 Open the Cursor chat that reviewed the brief and save it as `log/screenshots/step-01-review-brief.png`. Open the chat that produced this plan and save it as `log/screenshots/step-02-scaffold-plan.png`. Replace each `PENDING: screenshots/<file>.png` cell with `[<file>.png](screenshots/<file>.png)`.
 
-Capture the real chat. Do not generate, draw, or download a substitute image. If a chat is not on screen, ask Ann to open it and stop that capture.
+Capture the real chat. Do not generate, draw, or download a substitute image. If a chat is not on screen, ask the author to open it and stop that capture.
 
 - [ ] **Step 4: Run the full test file**
 
@@ -430,4 +430,4 @@ Expected: PASS for every test in `tests/test_scaffold.py`.
 - Spec coverage: element A is Tasks 3 and 6. The case columns for element C are the header in Task 4, with rows left empty. The "good" and "not acceptable" language required by element B is the draft rubric in Task 4, marked draft. Elements D and E, the architecture bonus, the brand, and the generator have no tasks, on purpose.
 - The brief's body is not copied into the repo. The PDF stays local and gitignored.
 - Screenshot cells cannot pass Task 6 on an empty or non-PNG file.
-- No commit step. The global constraint forbids a commit unless Ann asks.
+- No commit step. The global constraint forbids a commit unless the author asks.

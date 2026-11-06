@@ -1,8 +1,8 @@
 # Client Advisor message app — design
 
-Status: approved by Ann, except the open question at the end. Heavier designs are in `docs/future-implementation.md`.
+Status: approved by the author, except the open question at the end. Heavier designs are in `docs/future-implementation.md`.
 
-Revised on 2026-11-06 at Ann's request: the web page, the chat layer, the client editor, and Edit and Copy feedback are removed. The command line is the only front end. `docs/future-implementation.md` says what replaces them.
+Revised on 2026-11-06 at the author's request: the web page, the chat layer, the client editor, and Edit and Copy feedback are removed. The command line is the only front end. `docs/future-implementation.md` says what replaces them.
 
 ## Intent
 
@@ -106,7 +106,7 @@ A candidate's **strategy** is what the message is for: its hook, plus how much i
 
 Hooks: relationship, occasion, past purchase, product, access, craft or value, service. Ask level: none, soft, or a clear invitation.
 
-Each scenario has five strategies. The model picks three. The brand draft owns the final list, and Ann refines it. The wording below is for this document. The menu in the brand file is written in Chinese, not translated from this table:
+Each scenario has five strategies. The model picks three. The brand draft owns the final list, and the author refines it. The wording below is for this document. The menu in the brand file is written in Chinese, not translated from this table:
 
 | Scenario | Strategies |
 | --- | --- |
@@ -218,10 +218,10 @@ Each check has passing and failing fixtures, including a polite discount refusal
 
 ### Test set
 
-The agent drafts the test set in Chinese and Ann reviews it. GLM does not write its own test. Client profiles, conversation history, product text, occasions, and expectations are written in Chinese in the first draft. There is no English source to translate.
+The agent drafts the test set in Chinese and the author reviews it. GLM does not write its own test. Client profiles, conversation history, product text, occasions, and expectations are written in Chinese in the first draft. There is no English source to translate.
 
 1. **Brand first,** with the catalog, events, and festival calendar, so cases can point to real products, events, and dates.
-2. **Coverage table.** Scenarios 1–5 have 7 cases each. Scenario 6 has 15: 5 each for price too high, comparison, and discount request. Within scenarios 1–5, cases vary by client type (top, regular, new), relationship (close or formal), history (none, short, long), and whether a product is needed. Scenario 6 varies by client type and relationship, and by short or long history. Each of its cases includes a client message that states the subtype. Ann approves the table before cases are written.
+2. **Coverage table.** Scenarios 1–5 have 7 cases each. Scenario 6 has 15: 5 each for price too high, comparison, and discount request. Within scenarios 1–5, cases vary by client type (top, regular, new), relationship (close or formal), history (none, short, long), and whether a product is needed. Scenario 6 varies by client type and relationship, and by short or long history. Each of its cases includes a client message that states the subtype. The author approves the table before cases are written.
 3. **Hard cases,** one or two per scenario, each with expectations:
    - a birthday after a complaint
    - 七夕 versus 中秋, set by the case's timestamp
@@ -234,11 +234,11 @@ The agent drafts the test set in Chinese and Ann reviews it. GLM does not write 
 5. **Expectations.** Each case has must and must-not notes. The judge and some code checks read them. The generator never sees them, and a test asserts that the plan and write prompts do not contain them. They are not exported to `cases/cases.csv`.
 6. **Tests on the test set.** Counts per scenario match the table, case IDs are unique across both files, every client, product, and event exists, products are present where required, `cases/inputs.jsonl` has 50 rows, and `cases/tuning.jsonl` has 20. The natural language in both files and in the client profiles is Chinese, apart from allowed English names.
 7. **Freeze.** The test-set version is a hash of both files and the profiles of the clients they use. It is recorded before the first real run and in every manifest.
-8. **Two sets.** `cases/tuning.jsonl` has 20 cases for prompt tuning. `cases/inputs.jsonl` has the 50 cases the brief requires. The 20 are never copied into the 50, and they are never written to `cases/cases.csv`. Prompts are tuned on the 20. The 50 are run after the prompts are frozen, and that run is the submission table. Ann approves a short coverage list for the 20 before they are written.
+8. **Two sets.** `cases/tuning.jsonl` has 20 cases for prompt tuning. `cases/inputs.jsonl` has the 50 cases the brief requires. The 20 are never copied into the 50, and they are never written to `cases/cases.csv`. Prompts are tuned on the 20. The 50 are run after the prompts are frozen, and that run is the submission table. The author approves a short coverage list for the 20 before they are written.
 
 ### Rubric
 
-`docs/rubric.md` maps every rubric item to a code check or a judge item. Ann accepts it before the first real run.
+`docs/rubric.md` maps every rubric item to a code check or a judge item. The author accepts it before the first real run.
 
 | Rubric item | Scored by |
 | --- | --- |
@@ -319,16 +319,16 @@ The plan updates these first, with failing tests before each change:
 
 - `AGENT.md`: the brand, the generator, and the test cases move into scope.
 - `tests/test_scaffold.py`: drop the rule that `cases/cases.csv` is header-only.
-- `docs/rubric.md`: the rubric mapping above, still waiting for Ann's acceptance.
+- `docs/rubric.md`: the rubric mapping above, still waiting for the author's acceptance.
 
-## Decided by Ann
+## Decisions
 
-- The agent drafts the fictional brand; Ann refines it. English brand and product names are allowed inside otherwise Chinese text.
+- The agent drafts the fictional brand; the author refines it. English brand and product names are allowed inside otherwise Chinese text.
 - Every natural-language string sent to GLM is written in Chinese from the start, not translated from English. This includes prompts, brand text, strategy menus, scenario labels, client profiles, both test-case files, conversation history, product and event text, and judge expectations. JSON keys stay English. The tool does not translate.
 - The fifty submission inputs live in `cases/inputs.jsonl`. The 20 tuning inputs live in `cases/tuning.jsonl`. `cases/cases.csv` is produced by `export` from a run of the 50.
 - Each message is at least 90% Chinese after allowed English names are removed.
-- The model is GLM. Ann configures the key later. The judge model differs from the writer model.
-- Langfuse Cloud tracks traces, scores, and versions. Ann provides the keys.
+- The model is GLM. The author configures the key later. The judge model differs from the writer model.
+- Langfuse Cloud tracks traces, scores, and versions. The author provides the keys.
 - The six Chinese tone labels.
 - The clients behind the fifty test cases are part of the client store.
 - The overlap limit is 0.75. Failed model calls get two retries with exponential backoff.
@@ -348,6 +348,6 @@ The plan updates these first, with failing tests before each change:
 - Scenario 6 requires a client message that states the objection. Scenarios 1–5 may have empty history.
 - A 3-day festival window, the festival calendar in the brand data, 简短 up to 50 characters, 适中 51–130, a 150-character maximum, the acceptable and good rules, and the 20 tuning cases as the default batch.
 
-## Open question for Ann
+## Open question
 
 1. **GLM models.** Which GLM model writes and which judges, and any cost or speed limit.

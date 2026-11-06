@@ -38,7 +38,7 @@ class ScaffoldTest(unittest.TestCase):
             "Do not publish the brief.",
             "Do not invent a screenshot.",
             "Do not overwrite an earlier run.",
-            "If a requirement is unclear, stop and ask Ann. Do not guess.",
+            "If a requirement is unclear, stop and ask the author. Do not guess.",
             "Write a failing test before the change it covers.",
             "Edit an existing file before creating a new one.",
             "Keep code and docs concise.",
@@ -72,7 +72,7 @@ class ScaffoldTest(unittest.TestCase):
         self.assertIn("alwaysApply: true", rule)
         self.assertLess(len(rule.splitlines()), 50)
         self.assertIn("AGENT.md", rule)
-        self.assertIn("If a requirement is unclear, stop and ask Ann. Do not guess.", rule)
+        self.assertIn("If a requirement is unclear, stop and ask the author. Do not guess.", rule)
         self.assertIn("Edit an existing file before creating a new one.", rule)
         self.assertIn("The default languages are Python and Markdown.", rule)
         self.assertIn("Before finishing a document, read `.cursor/skills/deslop/SKILL.md` and apply it.", rule)
@@ -102,11 +102,11 @@ class ScaffoldTest(unittest.TestCase):
             "Case ID,Scenario,Client information,Conversation history,Product information,Output 1,Output 2,Output 3,Generator version",
         )
         rubric = (ROOT / "docs" / "rubric.md").read_text(encoding="utf-8")
-        for heading in ["# Draft rubric", "## Good", "## Not acceptable"]:
+        for heading in ["# Rubric", "## Good", "## Not acceptable"]:
             self.assertIn(heading, rubric)
         self.assertNotIn("## Unscored until the brand exists", rubric)
         self.assertNotIn("hard sell", rubric)
-        self.assertIn("Draft. Do not generate messages until Ann accepts or edits this file.", rubric)
+        self.assertNotIn("Draft", rubric)
         for line in [
             "## Scoring",
             "A candidate is acceptable",
@@ -125,8 +125,7 @@ class ScaffoldTest(unittest.TestCase):
             "cases/cases.csv",
             "docs/rubric.md",
             "AGENT.md",
-            "2026-11-09",
-            "Do not publish the brief.",
+            "must not be published",
         ]:
             self.assertIn(item, text)
 
