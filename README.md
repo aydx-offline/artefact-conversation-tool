@@ -1,16 +1,24 @@
 # CA message app
 
-This command-line tool drafts three Chinese WeChat messages for a fictional luxury house. Copy `.env.example` to `.env` and add the GLM model names and API key. Langfuse settings are optional.
+A command-line tool that drafts three Chinese WeChat messages for a Client Advisor at a fictional luxury house, 澄白 (Chengbai). It takes a client, a scenario, the conversation so far, and the products involved, and returns three candidates in different strategies. It covers six scenarios: birthday and festive greetings, product recommendation, post-purchase care, reactivation, event invitation, and price objection.
 
-## Run one case
+Everything here is fictional: the house, the clients, the products, and the chats. The written brief that set the challenge is not included and must not be published.
+
+**Final result.** On the 50 test cases, 40 are good, as judged by a second model. The ten that are not are listed, not hidden, in `docs/evaluation-report.md`.
+
+## Quick start
 
 ```sh
+pip install -r requirements.txt          # Langfuse, optional
+cp .env.example .env                     # then add the GLM key and two model names
 python3 -m ca generate --case cases/example.json
 ```
 
-This prints the three messages and the folder under `runs/` that keeps every prompt and reply. To try another input, copy `cases/example.json` and change the client, scenario, history, or products. Clients are in `data/clients.json`, products in `data/brand/catalog.json`.
+This prints three messages and the folder under `runs/` that keeps every prompt and reply. To try another input, copy `cases/example.json` and change the client, scenario, history, or products. Clients are in `data/clients.json` and products in `data/brand/catalog.json`.
 
-## Run, score, and export
+It was developed on Python 3.14 and runs in the Python 3.12 Docker image. Only the model calls need the network; the tests, `report`, and `export` run offline.
+
+## Commands
 
 ```sh
 python3 -m ca batch                                  # the 20 tuning cases
@@ -21,7 +29,15 @@ python3 -m ca export --run <run_id>                  # write cases/cases.csv
 python3 -m ca export --before <run_id> --after <run_id>
 ```
 
-Architecture diagrams are in `docs/architecture.md`.
+Each run is kept in `runs/<generator version>/<run_id>/` and is never overwritten. `runs/` is not committed.
+
+## Tests
+
+```sh
+python3 -m unittest discover -s tests
+```
+
+The tests run on a fake model with no network. One test, `test_step_screenshots_are_real_pngs_and_the_log_links_them`, fails until every row of `log/LOG.md` has a screenshot.
 
 ## Docker
 
@@ -32,4 +48,28 @@ docker run --rm --env-file .env -v "$PWD/runs:/app/runs" -v "$PWD/data:/app/data
 
 Any command above works after `ca-messages`, for example `python -m ca generate --case cases/example.json`.
 
-Project guidance and records are in `AGENT.md`, `log/LOG.md`, `docs/rubric.md`, and `cases/cases.csv`. Do not publish the brief. Submission is due 2026-11-09.
+## What is in the repo
+
+| Path | What it holds |
+| --- | --- |
+| `ca/` | The tool: the pipeline, code checks, judge, run store, Langfuse telemetry, and command line |
+| `data/` | The brand (voice, rules, strategy menus, catalog, events, festivals), the clients, and the GLM price list |
+| `cases/` | The 50 final and 20 tuning cases, `cases/cases.csv` with the 50 results, and `cases/example.json` |
+| `tests/` | The tests |
+| `log/` | The work log and its screenshots |
+| `docs/` | The documents below |
+
+## Submission documents
+
+| Element | File |
+| --- | --- |
+| A. Work log | `log/LOG.md` |
+| B. Methodology | `docs/methodology.md`, with the rubric in `docs/rubric.md` |
+| C. 50 test cases | `cases/cases.csv` |
+| D. Evaluation report | `docs/evaluation-report.md` |
+| E. Defects and next steps | `docs/defects-and-next-steps.md`, and `docs/future-implementation.md` |
+| Bonus: architecture | `docs/architecture.md`, as Mermaid diagrams |
+
+The design is in `docs/superpowers/specs/2026-11-04-ca-message-app-design.md`. Rules for agents working in the repo are in `AGENT.md`.
+
+Submission is due 2026-11-09. Do not publish the brief.

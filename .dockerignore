@@ -9,3 +9,6 @@ __pycache__
 *.py[cod]
 .DS_Store
 .venv
+.cursor
+docs
+tests

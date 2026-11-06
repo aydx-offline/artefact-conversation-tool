@@ -1,7 +1,23 @@
-Written_Challenge_Brief.pdf
-.DS_Store
-.venv/
+# Secrets and local settings. Only .env.example is committed.
 .env
-__pycache__/
-.worktrees/
+.env.*
+!.env.example
+
+# The challenge brief must not be published.
+Written_Challenge_Brief.pdf
+
+# Run output: prompts, raw replies, and scores for every run.
 runs/
+
+# Python, editors, and the operating system.
+__pycache__/
+*.py[cod]
+.venv/
+.idea/
+.vscode/
+.DS_Store
+
+# Agent scratch space and worktrees.
+.worktrees/
+.superpowers/
+.claude/

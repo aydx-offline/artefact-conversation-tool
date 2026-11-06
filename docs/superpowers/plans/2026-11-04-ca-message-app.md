@@ -1,5 +1,7 @@
 # CA Message App Implementation Plan
 
+> **Historical.** This is the plan the build followed. On 2026-11-06 the web page (Task 14) and chat extraction (Task 12) were removed at Ann's request, and the command line became the only front end. The design document says what the tool is now.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the fixed pipeline that turns one case into three Chinese WeChat candidates, plus the CLI, the local page, scoring, and Docker.

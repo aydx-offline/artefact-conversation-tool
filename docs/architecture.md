@@ -49,7 +49,6 @@ flowchart LR
 flowchart LR
     STORE[("Run store<br/>one run, one generator version")]
     JUDGE["Judge<br/>GLM-5.3, reasoning high<br/>24 rows per case"]
-    GLMJ["Judge model"]
     RUBRIC["Rubric<br/>2 pass or fail items,<br/>6 items scored 1 to 5"]
     SCORES[("scores.jsonl<br/>judge version recorded")]
     GOOD{{"Acceptable candidate:<br/>all code checks pass,<br/>no item below 3.<br/>Good case: all 3 acceptable"}}
@@ -60,7 +59,6 @@ flowchart LR
 
     STORE --> JUDGE
     RUBRIC --> JUDGE
-    JUDGE <--> GLMJ
     JUDGE --> SCORES
     SCORES --> GOOD
     SCORES --> REPORT
