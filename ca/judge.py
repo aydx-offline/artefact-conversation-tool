@@ -72,19 +72,22 @@ def evaluate_case(case_file: dict, model, brand) -> list[dict]:
         case.get("expectations") or [],
         brand,
     )
-    raw = complete_with_retries(model, *prompt, time.sleep)
-    call = {
-        "prompt": "\n".join(prompt),
-        "raw": raw,
-        "usage": getattr(raw, "usage", None),
-        "latency_ms": getattr(raw, "latency_ms", None),
-        "model": getattr(model, "model_name", None),
-    }
-    try:
-        scores = _validated_scores(raw)
-    except JudgeError as error:
-        error.call = call
-        raise
+    for attempt in range(2):
+        raw = complete_with_retries(model, *prompt, time.sleep)
+        call = {
+            "prompt": "\n".join(prompt),
+            "raw": raw,
+            "usage": getattr(raw, "usage", None),
+            "latency_ms": getattr(raw, "latency_ms", None),
+            "model": getattr(model, "model_name", None),
+        }
+        try:
+            scores = _validated_scores(raw)
+            break
+        except JudgeError as error:
+            error.call = call
+            if attempt == 1:
+                raise
 
     current_evaluation_id = evaluation_id()
     common = {

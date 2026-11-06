@@ -117,7 +117,7 @@ class CliTest(unittest.TestCase):
         main(["generate", "--case", str(self.case_path)], model=FakeModel([plan(), write()]), root=self.root)
         run_id = self.run_id()
         raw = "不是有效评分"
-        self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([raw]), root=self.root), 0)
+        self.assertEqual(main(["evaluate", "--run", run_id], judge_model=FakeModel([raw, raw]), root=self.root), 0)
         rows = [
             json.loads(line)
             for line in (self.root / "runs" / GENERATOR_VERSION / run_id / "scores.jsonl").read_text(encoding="utf-8").splitlines()

@@ -97,8 +97,15 @@ class JudgeTests(unittest.TestCase):
     def test_invalid_judge_json_raises_clear_error(self):
         raw = "不是 JSON"
         with self.assertRaisesRegex(ValueError, "judge JSON") as raised:
-            evaluate_case(case_file(), FakeModel(["不是 JSON"]), BRAND)
+            evaluate_case(case_file(), FakeModel(["不是 JSON", raw]), BRAND)
         self.assertEqual(raised.exception.raw, raw)
+
+    def test_invalid_judge_json_is_retried_once(self):
+        good = json.dumps({"scores": judge_scores()}, ensure_ascii=False)
+        model = FakeModel(["不是 JSON", good])
+        rows = evaluate_case(case_file(), model, BRAND)
+        self.assertEqual(len(model.calls), 2)
+        self.assertEqual(rows.call["raw"], good)
 
     def test_evaluate_case_normalises_boolean_fact_values(self):
         scores = judge_scores()
@@ -148,7 +155,7 @@ class JudgeTests(unittest.TestCase):
             raw = json.dumps({"scores": scores}, ensure_ascii=False)
             with self.subTest(label=label):
                 with self.assertRaisesRegex(ValueError, "invalid judge") as raised:
-                    evaluate_case(case_file(), FakeModel([raw]), BRAND)
+                    evaluate_case(case_file(), FakeModel([raw, raw]), BRAND)
                 self.assertEqual(raised.exception.raw, raw)
 
     def test_candidate_is_acceptable_at_threshold(self):

@@ -5,6 +5,7 @@ from pathlib import Path
 from ca.prompts import (
     SCENARIO_ZH,
     chat_prompt,
+    draft_prompt,
     judge_prompt,
     managed_prompts,
     natural_language_is_chinese,
@@ -126,6 +127,21 @@ class PromptTest(unittest.TestCase):
             self.assertIn(word, user)
         for word in ("lin", "scarf", "product_id", "id", "yunwen"):
             self.assertNotIn(word, user)
+
+    def test_day_line_states_date_season_birthday_and_last_message(self):
+        resolved = {**RESOLVED, "today": "2026-08-17", "days_to_birthday": 210, "days_since_message": 0}
+        _, user = write_prompt(resolved, PLAN)
+        self.assertIn("今天：2026-08-17（8月，夏季）", user)
+        self.assertIn("距她生日还有210天", user)
+        self.assertIn("上一条消息是今天", user)
+        _, user = write_prompt({**resolved, "today": "2026-01-05", "days_since_message": 3}, PLAN)
+        self.assertIn("（1月，冬季）", user)
+        self.assertIn("上一条消息是3天前", user)
+
+    def test_draft_forbids_invented_facts(self):
+        system, _ = draft_prompt(RESOLVED, MENU)
+        self.assertIn("不要写档案里没有的产品细节", system)
+        self.assertIn("没买过的东西", system)
 
     def test_event_without_capacity_omits_it(self):
         resolved = {**RESOLVED, "event": BRAND.events["spring"]}

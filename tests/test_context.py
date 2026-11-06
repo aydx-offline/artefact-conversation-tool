@@ -65,8 +65,18 @@ class ContextTest(unittest.TestCase):
         self.assertEqual(ctx.festival, "中秋")
         self.assertEqual(self.resolve("2026-03-14T20:00:00-05:00").birthday, True)
 
+    def test_today_birthday_and_last_message(self):
+        ctx = resolve_context("2026-08-17T10:00:00+08:00", self.lin, self.festivals, "", "2026-08-17T09:00:00+08:00")
+        self.assertEqual((ctx.today, ctx.days_to_birthday, ctx.days_since_message), ("2026-08-17", 210, 0))
+        ctx = self.resolve("2026-03-15T10:00:00+08:00")
+        self.assertEqual((ctx.days_to_birthday, ctx.days_since_message), (0, None))
+        self.assertEqual(self.resolve("2026-03-16T10:00:00+08:00").days_to_birthday, 364)
+
     def test_context_fields(self):
-        self.assertEqual(list(Context.__dataclass_fields__), ["occasion", "festival", "birthday", "days_since_purchase", "months_since_visit"])
+        self.assertEqual(
+            list(Context.__dataclass_fields__),
+            ["occasion", "festival", "birthday", "days_since_purchase", "months_since_visit", "today", "days_to_birthday", "days_since_message"],
+        )
 
 
 if __name__ == "__main__":

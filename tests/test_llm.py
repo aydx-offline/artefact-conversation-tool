@@ -110,13 +110,16 @@ class GlmTests(unittest.TestCase):
             },
         )
 
-    def test_thinking_disabled_is_sent(self):
-        body = build_body("m", "sys", "usr", thinking=False)
+    def test_reasoning_effort_none_disables_thinking(self):
+        body = build_body("m", "sys", "usr", reasoning_effort="none")
         self.assertEqual(body["thinking"], {"type": "disabled"})
         self.assertEqual(body["reasoning_effort"], "none")
+        self.assertEqual(build_body("m", "s", "u", reasoning_effort="high")["reasoning_effort"], "high")
+        self.assertNotIn("thinking", build_body("m", "s", "u", reasoning_effort="high"))
+        self.assertNotIn("reasoning_effort", build_body("m", "s", "u"))
 
-    def test_complete_sends_disabled_thinking(self):
-        model = GlmModel(KEY, "https://example.invalid/v1", "m", thinking=False)
+    def test_complete_sends_reasoning_effort(self):
+        model = GlmModel(KEY, "https://example.invalid/v1", "m", reasoning_effort="none")
         response = MagicMock()
         response.__enter__.return_value.read.return_value = (
             b'{"choices":[{"message":{"content":"ok"}}]}'
@@ -124,13 +127,13 @@ class GlmTests(unittest.TestCase):
         with patch("urllib.request.urlopen", return_value=response) as urlopen:
             model.complete("s", "u")
         sent = json.loads(urlopen.call_args.args[0].data)
-        self.assertEqual(sent["thinking"], {"type": "disabled"})
+        self.assertEqual(sent["reasoning_effort"], "none")
 
-    def test_writer_disables_thinking_and_judge_keeps_it(self):
+    def test_writer_and_judge_reasoning_come_from_env(self):
         writer, judge = _models(ENV, None, None)
-        self.assertIs(writer.thinking, False)
-        self.assertIs(judge.thinking, True)
-        self.assertEqual(build_body("m", "s", "u", thinking=True)["thinking"], {"type": "enabled"})
+        self.assertEqual((writer.reasoning_effort, judge.reasoning_effort), ("none", None))
+        writer, judge = _models({**ENV, "WRITER_REASONING": "high", "JUDGE_REASONING": "medium"}, None, None)
+        self.assertEqual((writer.reasoning_effort, judge.reasoning_effort), ("high", "medium"))
 
     def test_parse_reply(self):
         raw = '{"choices":[{"message":{"content":"你好"}}]}'

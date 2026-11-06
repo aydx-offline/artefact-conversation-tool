@@ -19,7 +19,7 @@ class FakeModel:
         return reply
 
 
-def build_body(model_name, system, user, thinking=None):
+def build_body(model_name, system, user, reasoning_effort=None):
     body = {
         "model": model_name,
         "messages": [
@@ -27,11 +27,10 @@ def build_body(model_name, system, user, thinking=None):
             {"role": "user", "content": user},
         ],
     }
-    if thinking is False:
+    if reasoning_effort == "none":
         body["thinking"] = {"type": "disabled"}
-        body["reasoning_effort"] = "none"
-    elif thinking is True:
-        body["thinking"] = {"type": "enabled"}
+    if reasoning_effort:
+        body["reasoning_effort"] = reasoning_effort
     return body
 
 
@@ -96,12 +95,12 @@ def parse_json(raw):
 
 
 class GlmModel:
-    def __init__(self, api_key, base_url, model_name, timeout=60, thinking=None):
+    def __init__(self, api_key, base_url, model_name, timeout=60, reasoning_effort=None):
         self._api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
         self.timeout = timeout
-        self.thinking = thinking
+        self.reasoning_effort = reasoning_effort
 
     def __repr__(self):
         return f"GlmModel(base_url={self.base_url!r}, model_name={self.model_name!r})"
@@ -110,7 +109,7 @@ class GlmModel:
         request = urllib.request.Request(
             self.base_url,
             data=json.dumps(
-                build_body(self.model_name, system, user, thinking=self.thinking)
+                build_body(self.model_name, system, user, self.reasoning_effort)
             ).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",

@@ -73,20 +73,23 @@ def _resolve(case, brand, clients):
     if (case.event_id or case.scenario == "5 Event invitation") and case.event_id not in brand.events:
         raise CaseError("event_id", f"missing or unknown event {case.event_id!r}")
     event = copy.deepcopy(brand.events[case.event_id]) if case.event_id else None
-    context = resolve_context(case.timestamp, client, brand.festivals, case.occasion)
+    history = [asdict(m) if is_dataclass(m) else m for m in (case.history if case.history is not None else client.get("history", []))]
+    context = resolve_context(case.timestamp, client, brand.festivals, case.occasion, history[-1]["time"] if history else None)
     if case.scenario == "1 Birthday and festive greetings" and not context.occasion:
         raise CaseError("occasion", "scenario 1 needs an occasion")
-    history = case.history if case.history is not None else client.get("history", [])
     return copy.deepcopy(
         {
             "client": client,
             "scenario": case.scenario,
             "products": products,
             "event": event,
-            "history": [asdict(m) if is_dataclass(m) else m for m in history],
+            "history": history,
             "occasion": context.occasion if case.scenario == "1 Birthday and festive greetings" else case.occasion,
             "days_since_purchase": context.days_since_purchase,
             "months_since_visit": context.months_since_visit,
+            "today": context.today,
+            "days_to_birthday": context.days_to_birthday,
+            "days_since_message": context.days_since_message,
             "tone": case.tone,
             "length": case.length,
             "expectations": case.expectations,

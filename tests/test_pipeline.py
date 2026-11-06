@@ -147,6 +147,8 @@ class PipelineTests(unittest.TestCase):
         _, result = run([plan(*menu[:3]), "坏"], case)
         self.assertEqual([p["id"] for p in result.resolved["products"]], ["scarf"])
         self.assertEqual(result.resolved["days_since_purchase"], 247)
+        self.assertEqual(result.resolved["today"], "2026-11-04")
+        self.assertIsNotNone(result.resolved["days_to_birthday"])
 
 
 if __name__ == "__main__":

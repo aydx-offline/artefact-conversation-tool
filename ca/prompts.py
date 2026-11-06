@@ -84,6 +84,9 @@ def _event_lines(event):
     return lines
 
 
+SEASONS = ("冬季", "春季", "夏季", "秋季")
+
+
 def _case_body(resolved: dict, brand) -> str:
     lines = _client_lines(resolved["client"], brand.catalog)
     lines.append(f"场景：{SCENARIO_ZH[resolved['scenario']]}")
@@ -97,6 +100,14 @@ def _case_body(resolved: dict, brand) -> str:
     if resolved.get("event"):
         lines += _event_lines(resolved["event"])
     day_parts = []
+    if resolved.get("today"):
+        month = int(resolved["today"][5:7])
+        day_parts.append(f"今天：{resolved['today']}（{month}月，{SEASONS[month % 12 // 3]}）")
+    if resolved.get("days_to_birthday") is not None:
+        day_parts.append(f"距她生日还有{resolved['days_to_birthday']}天")
+    if resolved.get("days_since_message") is not None:
+        days = resolved["days_since_message"]
+        day_parts.append(f"上一条消息是{'今天' if days == 0 else f'{days}天前'}")
     if resolved.get("occasion"):
         day_parts.append(f"节日或生日：{quote_data(resolved['occasion'])}")
     if resolved.get("days_since_purchase") is not None:
@@ -134,6 +145,7 @@ def draft_prompt(resolved: dict, menu: list, brand=None) -> tuple[str, str]:
     system = (
         f"{_house(brand)}\n{DATA_NOTE}\n"
         "任务：从策略菜单里选出三个互不相同的策略，并各写一条微信消息。策略必须逐字照抄菜单原文。\n"
+        "日子以上面写的为准。不要写档案里没有的产品细节，不要说她买过她没买过的东西。\n"
         f"语气只能选：{'、'.join(TONES)}。\n{_length_rule(brand)}\n"
         f"{_voice_line()}"
         '只输出如下格式：{"candidates":[{"strategy":"菜单原文","reason":"选它的理由","tone":"","length":"","text":""}]}'

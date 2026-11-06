@@ -13,6 +13,9 @@ class Context:
     birthday: bool
     days_since_purchase: int | None
     months_since_visit: int | None
+    today: str
+    days_to_birthday: int | None
+    days_since_message: int | None
 
 
 def _message_date(timestamp):
@@ -36,7 +39,12 @@ def _months_between(start, end):
     return months - (end.day < start.day)
 
 
-def resolve_context(timestamp, client, festivals, occasion):
+def _days_to_birthday(birthday, today):
+    month, day = map(int, birthday.split("-"))
+    return min((date(year, month, day) - today).days for year in (today.year, today.year + 1) if date(year, month, day) >= today)
+
+
+def resolve_context(timestamp, client, festivals, occasion, last_message=None):
     today = _message_date(timestamp)
     festival = next((f["name"] for f in festivals if _in_window(date.fromisoformat(f["date"]), today)), None)
     birthday = bool(client.get("birthday")) and _birthday_in_window(client["birthday"], today)
@@ -50,4 +58,7 @@ def resolve_context(timestamp, client, festivals, occasion):
         birthday,
         (today - max(purchases)).days if purchases else None,
         _months_between(date.fromisoformat(last_visit), today) if last_visit else None,
+        today.isoformat(),
+        _days_to_birthday(client["birthday"], today) if client.get("birthday") else None,
+        (today - _message_date(last_message)).days if last_message else None,
     )

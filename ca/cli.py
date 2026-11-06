@@ -149,8 +149,8 @@ def _models(env, model, judge_model):
     writer_name, judge_name = require_models(env)
     url = env.get("GLM_BASE_URL") or DEFAULT_BASE_URL
     return (
-        GlmModel(env["GLM_API_KEY"], url, writer_name, _positive_int(env, "GLM_TIMEOUT", 60), thinking=False),
-        GlmModel(env["GLM_API_KEY"], url, judge_name, _positive_int(env, "JUDGE_TIMEOUT", 300), thinking=True),
+        GlmModel(env["GLM_API_KEY"], url, writer_name, _positive_int(env, "GLM_TIMEOUT", 60), env.get("WRITER_REASONING") or "none"),
+        GlmModel(env["GLM_API_KEY"], url, judge_name, _positive_int(env, "JUDGE_TIMEOUT", 300), env.get("JUDGE_REASONING") or None),
     )
 
 
