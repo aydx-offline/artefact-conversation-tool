@@ -1,0 +1,33 @@
+run 20261106T195636316Z, generator 0.1.14
+good: 40 of 50 judged cases (not judged: none)
+1 Birthday and festive greetings: 4 / 7
+2 Product recommendation: 7 / 7
+3 Post-purchase care: 7 / 7
+4 Reactivation: 6 / 7
+5 Event invitation: 5 / 7
+6 Price objection — comparison: 4 / 5
+6 Price objection — discount request: 3 / 5
+6 Price objection — price too high: 4 / 5
+judge items (mean; 事实 and 期望 are pass rates):
+  事实 0.99
+  期望 0.97
+  场景 4.78
+  称呼 4.83
+  具体 4.42
+  中文 4.73
+  品牌 4.77
+  不催 4.93
+problems:
+  f02 check menu: candidates [1]
+  f02 0 具体 2: 内容泛泛，没提她的围巾或任何已有信息。
+  f03 2 事实 fail: 生日是09-24，中秋是09-25，两日只差一天，消息里说差两天，与资料不符。
+  f07 0 期望 fail: 必须项是真诚送上生日祝福，但整条消息完全没提生日，漏掉了核心任务。
+  f07 1 期望 fail: 生日祝福这个必须项完全缺失，只处理了围巾护理。
+  f07 1 场景 2: 回应了投诉并安排护理，但生日在两天后这个关键日子完全没接上，与场景要求脱节。
+  f27 1 品牌 2: 服务本身合规，但客人没提折扣就明说「免费」，违反了不在折扣场景外说免费、送心意的规矩。
+  f29 2 期望 fail: 要求简短（1–50字），实际约60字，超出篇幅上限。
+  f33 1 事实 fail: 大衣里有几件浅色调的是资料里没有的，按品牌规矩不知道就不说，不应猜颜色。
+  f37 1 期望 fail: '一直保持好的状态'带长期承诺意味，且免费护理只限客人已有的东西，这条裙子她还没买，不该把护理服务挂在这件上。
+  f45 2 期望 fail: 必须说明官方渠道与服务的差异，这条只转到料子上手感受和到店试穿，没有回应渠道与服务差别这一核心。
+  f47 check distinct_strategies: repeated at [1]
+  f48 check distinct_strategies: repeated at [1]

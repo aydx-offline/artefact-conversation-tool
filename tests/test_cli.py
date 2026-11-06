@@ -261,6 +261,21 @@ class CliTest(unittest.TestCase):
         self.assertIn("b 1 事实 fail: 编造新品", text)
         self.assertNotIn("a 1 事实", text)
 
+    def test_report_is_saved_in_the_run_folder_or_where_asked(self):
+        from ca.cli import main
+
+        run_id = self._stored_status_run([("a", "done", TEXTS)])
+        output = io.StringIO()
+        with redirect_stdout(output):
+            main(["report", "--run", run_id], root=self.root)
+        saved = (self.root / "runs" / GENERATOR_VERSION / run_id / "report.txt").read_text(encoding="utf-8")
+        self.assertEqual(saved, output.getvalue())
+
+        elsewhere = self.root / "out" / "final.txt"
+        with redirect_stdout(io.StringIO()):
+            main(["report", "--run", run_id, "--out", str(elsewhere)], root=self.root)
+        self.assertEqual(elsewhere.read_text(encoding="utf-8"), saved)
+
     def test_export_refuses_tuning_but_exports_incomplete_run(self):
         from ca.cli import main
 

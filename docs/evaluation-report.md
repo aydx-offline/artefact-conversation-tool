@@ -2,7 +2,7 @@
 
 This file is submission element D. How the tool was designed and what "good" means are in `docs/methodology.md`. The defects and the changes made are in `docs/defects-and-next-steps.md`.
 
-**What was evaluated.** The 50 final cases, written by generator version 0.1.14 and scored by judge version 0.1.8 (run `20261106T195636316Z`). `cases/cases.csv` holds the inputs and the three outputs for each case. Fixing stopped at 0.1.14, so the defects below are in the submitted version.
+**What was evaluated.** The 50 final cases, written by generator version 0.1.14 and scored by judge version 0.1.8 (run `20261106T195636316Z`). `cases/cases.csv` holds the inputs and the three outputs for each case, and `docs/final-run-report.txt` is the raw output of `python3 -m ca report` for this run. Fixing stopped at 0.1.14, so the defects below are in the submitted version.
 
 ## Summary
 

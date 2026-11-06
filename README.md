@@ -24,7 +24,8 @@ It was developed on Python 3.14 and runs in the Python 3.12 Docker image. Only t
 python3 -m ca batch                                  # the 20 tuning cases
 python3 -m ca batch --cases cases/inputs.jsonl       # the 50 final cases
 python3 -m ca evaluate --run <run_id>                # judge every candidate
-python3 -m ca report --run <run_id>                  # good cases, scores, problems
+python3 -m ca report --run <run_id>                  # good cases, scores, problems; saved as report.txt in the run folder
+python3 -m ca report --run <run_id> --out FILE       # save the report in FILE instead
 python3 -m ca export --run <run_id>                  # write cases/cases.csv
 python3 -m ca export --before <run_id> --after <run_id>
 ```
@@ -66,7 +67,7 @@ Any command above works after `ca-messages`, for example `python -m ca generate 
 | A. Work log | `log/LOG.md` |
 | B. Methodology | `docs/methodology.md`, with the rubric in `docs/rubric.md` |
 | C. 50 test cases | `cases/cases.csv` |
-| D. Evaluation report | `docs/evaluation-report.md` |
+| D. Evaluation report | `docs/evaluation-report.md`, with the raw `report` output in `docs/final-run-report.txt` |
 | E. Defects and next steps | `docs/defects-and-next-steps.md`, and `docs/future-implementation.md` |
 | Bonus: architecture | `docs/architecture.md`, as Mermaid diagrams |
 

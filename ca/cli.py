@@ -407,16 +407,20 @@ def _report_command(args, root):
             if value == 0 or (row["item"] in JUDGE_SCORE_ITEMS and value < 3):
                 problems.append(f"{case_id} {row['candidate']} {row['item']} {'fail' if value == 0 else value}: {row.get('reason', '')}")
     missing = [case_id for case_id in manifest["case_ids"] if case_id not in good]
-    print(f"run {args.run}, generator {manifest['generator_version']}")
-    print(f"good: {sum(good.values())} of {len(good)} judged cases (not judged: {', '.join(missing) or 'none'})")
-    for scenario, (number, total) in sorted(by_scenario.items()):
-        print(f"{scenario}: {number} / {total}")
-    print("judge items (mean; 事实 and 期望 are pass rates):")
-    for item in JUDGE_FACT_ITEMS + JUDGE_SCORE_ITEMS:
-        if item in items:
-            print(f"  {item} {sum(items[item]) / len(items[item]):.2f}")
-    print("problems:")
-    print("\n".join(f"  {line}" for line in problems) or "  none")
+    lines = [
+        f"run {args.run}, generator {manifest['generator_version']}",
+        f"good: {sum(good.values())} of {len(good)} judged cases (not judged: {', '.join(missing) or 'none'})",
+        *(f"{scenario}: {number} / {total}" for scenario, (number, total) in sorted(by_scenario.items())),
+        "judge items (mean; 事实 and 期望 are pass rates):",
+        *(f"  {item} {sum(items[item]) / len(items[item]):.2f}" for item in JUDGE_FACT_ITEMS + JUDGE_SCORE_ITEMS if item in items),
+        "problems:",
+        *(f"  {line}" for line in problems or ["none"]),
+    ]
+    text = "\n".join(lines) + "\n"
+    print(text, end="")
+    out = Path(args.out) if args.out else run_dir / "report.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
     return 0
 
 
@@ -492,6 +496,7 @@ def _parser():
     evaluate_parser.add_argument("--run", required=True)
     report_parser = commands.add_parser("report")
     report_parser.add_argument("--run", required=True)
+    report_parser.add_argument("--out", help="save the report here instead of in the run folder")
     export_parser = commands.add_parser("export")
     choice = export_parser.add_mutually_exclusive_group(required=True)
     choice.add_argument("--run")
